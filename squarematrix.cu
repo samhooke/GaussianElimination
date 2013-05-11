@@ -1,6 +1,4 @@
 #include "squarematrix.h"
-#include <stdio.h>
-#include <stdlib.h>
 
 // Allocates space for a SquareMatrix, and populates with values
 // size: width/height of the square matrix
@@ -9,7 +7,7 @@
 SquareMatrix AllocateSquareMatrix(int size, int init) {
 	SquareMatrix M;
 	M.size = size;
-	M.elements = (float*) malloc(size * sizeof(float));
+	M.elements = (float*) malloc(size * size * sizeof(float));
 
 	for (unsigned int i = 0; i < M.size * M.size; i++)
 		M.elements[i] = (init == 0) ? 0.0f : 3 * (rand() / (float) RAND_MAX);
@@ -23,14 +21,12 @@ SquareMatrix AllocateSquareMatrix(int size, int init) {
 void DisplaySquareMatrix(SquareMatrix M, int precision) {
 	char fmt[10];
 	sprintf(fmt, "%%.%df", precision);
-
-	for (unsigned int y = 0; y < M.size; y++) {
-		for (unsigned int x = 0; x < M.size; x++) {
-			printf(fmt, M.elements[y * M.size + x]);
-			if (x < M.size - 1) {
-				printf(" ");
-			}
-		}
-		printf("\n");
+	for (unsigned int i = 0; i < M.size * M.size; i++) {
+		printf(fmt, M.elements[i]);
+		if (i % M.size == M.size - 1)
+			printf("\n");
+		else
+			printf(" ");
 	}
 }
+

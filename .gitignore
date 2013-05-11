@@ -1,0 +1,29 @@
+# Object files
+*.o
+
+# Libraries
+*.lib
+*.a
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Eclipse stuff
+.cproject
+.project
+
+# Debug output
+debug.txt
+mm_output.txt
+Debug/
+
+# Junk
+.DS_Store

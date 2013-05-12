@@ -3,6 +3,6 @@
 
 #include "squarematrix.h"
 
-void elimination_gold(float *a, float *b, float *x, int n);
+void elimination_gold(float *a, float *b, int n);
 
 #endif //_ELIMINATION_GOLD_H_

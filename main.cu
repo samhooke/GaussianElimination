@@ -42,20 +42,18 @@ int main() {
 	};
 	*/
 	// Matrix size
-
-	/*
 	#define N 3
 	float a[] = {
 			-5, 2, 1,
 			1, -8, 3,
-			3, 1, 7
+			3, 1, -7
 	};
 	float b[] = {
 			2,
 			-6,
 			-16
 	};
-	*/
+	/*
 	#define N 3
 	float a[] = {
 			1, 2, 0,
@@ -67,7 +65,7 @@ int main() {
 			-5,
 			-4
 	};
-
+	*/
 	elimination_gold(a, b, N);
 
 	for (unsigned int i = 0; i < N; i++)

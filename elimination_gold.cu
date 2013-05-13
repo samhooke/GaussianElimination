@@ -1,17 +1,13 @@
 #include "elimination_gold.h"
 
-void print_matrix(float *a, float *b, int n) {
-#define element(_x, _y) (*(a + ((_y) * (n) + (_x))))
-	unsigned int i, j;
-	for (j = 0; j < n; j++) {
-		printf("[");
-		for (i = 0; i < n; i++)
-			printf("%6.3f ", element(i, j));
-		printf("| %6.3f ]\n", b[j]);
-	}
-#undef element
-}
-
+// Performs Gauss-Jordan elimination on the CPU; [A]{x]={b}
+// Inputs:
+//   a -> [A], the matrix of coefficients of size 'n' by 'n'
+//   b -> {b}, the vertical matrix of results
+//   n -> width/height of 'a', and height of 'b'
+// Outputs:
+//   Modifies 'a' into the identity matrix
+//   Modifies 'b' into the solution for {x}
 void elimination_gold(float *a, float *b, int n) {
 #define element(_x, _y) (*(a + ((_y) * (n) + (_x))))
 	unsigned int xx, yy, rr;
@@ -26,9 +22,8 @@ void elimination_gold(float *a, float *b, int n) {
 		b[yy] /= pivot;
 
 #ifdef DEBUG
-		// Print out matrix
 		printf("Matrix (Stage 1; Column %d):\n", yy);
-		print_matrix(a, b, n);
+		elimination_gold_print_matrix(a, b, n);
 #endif
 
 		// Make all other values in the pivot column be zero
@@ -42,10 +37,28 @@ void elimination_gold(float *a, float *b, int n) {
 		}
 
 #ifdef DEBUG
-		// Print out matrix
 		printf("Matrix (Stage 2; Column %d):\n", yy);
-		print_matrix(a, b, n);
+		elimination_gold_print_matrix(a, b, n);
 #endif
+	}
+#undef element
+}
+
+// Prints a matrix in the format of [A]{b}
+// Inputs:
+//   a -> [A], the matrix of coefficients of size 'n' by 'n'
+//   b -> {b}, the vertical matrix of results
+//   n -> width/height of 'a', and height of 'b'
+// Outputs:
+//   Prints out the matrix as a nicely formatted table
+void elimination_gold_print_matrix(float *a, float *b, int n) {
+#define element(_x, _y) (*(a + ((_y) * (n) + (_x))))
+	unsigned int i, j;
+	for (j = 0; j < n; j++) {
+		printf("[");
+		for (i = 0; i < n; i++)
+			printf("%6.3f ", element(i, j));
+		printf("| %6.3f ]\n", b[j]);
 	}
 #undef element
 }

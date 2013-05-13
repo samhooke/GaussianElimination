@@ -5,9 +5,8 @@ void print_matrix(float *a, float *b, int n) {
 	unsigned int i, j;
 	for (j = 0; j < n; j++) {
 		printf("[");
-		for (i = 0; i < n; i++) {
+		for (i = 0; i < n; i++)
 			printf("%6.3f ", element(i, j));
-		}
 		printf("| %6.3f ]\n", b[j]);
 	}
 #undef element
@@ -16,7 +15,6 @@ void print_matrix(float *a, float *b, int n) {
 void elimination_gold(float *a, float *b, int n) {
 #define element(_x, _y) (*(a + ((_y) * (n) + (_x))))
 	unsigned int xx, yy, rr;
-
 	float c;
 
 	for (yy = 0; yy < n; yy++) {
@@ -27,9 +25,11 @@ void elimination_gold(float *a, float *b, int n) {
 			element(xx, yy) /= pivot;
 		b[yy] /= pivot;
 
+#ifdef DEBUG
 		// Print out matrix
 		printf("Matrix (Stage 1; Column %d):\n", yy);
 		print_matrix(a, b, n);
+#endif
 
 		// Make all other values in the pivot column be zero
 		for (rr = 0; rr < n; rr++) {
@@ -41,9 +41,11 @@ void elimination_gold(float *a, float *b, int n) {
 			}
 		}
 
+#ifdef DEBUG
 		// Print out matrix
 		printf("Matrix (Stage 2; Column %d):\n", yy);
 		print_matrix(a, b, n);
+#endif
 	}
 #undef element
 }

@@ -4,8 +4,6 @@
 #include "elimination_gold.h"
 #include "elimination_kernel.h"
 
-
-
 int main() {
 	/*
 	// Matrix size
@@ -26,7 +24,7 @@ int main() {
 			0.60,
 			0.02
 	};
-*/
+	*/
 	// Matrix size
 	#define N 3
 	float a[] = {

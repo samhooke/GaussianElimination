@@ -1,5 +1,5 @@
 #include "elimination_kernel.h"
 
-__global__ void elimination(SquareMatrix M, SquareMatrix N) {
+__global__ void elimination_kernel(float *a, float *f, int n) {
 
 }

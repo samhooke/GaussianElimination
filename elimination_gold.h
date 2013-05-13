@@ -1,8 +1,6 @@
 #ifndef _ELIMINATION_GOLD_H_
 #define _ELIMINATION_GOLD_H_
 
-#include "squarematrix.h"
-
 void elimination_gold(float *a, float *b, int n);
 void elimination_gold_print_matrix(float *a, float *f, int n);
 

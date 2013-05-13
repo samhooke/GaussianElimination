@@ -1,8 +1,6 @@
 #ifndef _ELIMINATION_KERNEL_H_
 #define _ELIMINATION_KERNEL_H_
 
-#include "squarematrix.h"
-
-__global__ void elimination(SquareMatrix M, SquareMatrix N);
+__global__ void elimination_kernel(float *a, float *f, int n);
 
 #endif //_ELIMINATION_KERNEL_H_

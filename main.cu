@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "squarematrix.h"
 #include "elimination_gold.h"
 #include "elimination_kernel.h"
 

@@ -1,4 +1,6 @@
 #include "elimination_gold.h"
+#include <stdio.h>
+
 
 // Performs Gauss-Jordan elimination on the CPU; [A]{x]={b}
 // Inputs:

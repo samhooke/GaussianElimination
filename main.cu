@@ -3,74 +3,117 @@
 #include "elimination_gold.h"
 #include "elimination_kernel.h"
 
+typedef struct {
+	float* a;
+	float* b;
+	int size;
+} Matrix;
+
+Matrix matrix_generate(int size, int type);
+
 int main() {
-	/*
-	// Matrix size
-	#define N 6
-	float a[] = {
-			1.00, 0.00, 0.00, 0.00, 0.00, 0.00,
-			1.00, 0.63, 0.39, 0.25, 0.16, 0.10,
-			1.00, 1.26, 1.58, 1.98, 2.49, 3.13,
-			1.00, 1.88, 3.55, 6.70, 6.62, 3.80,
-			1.00, 2.51, 6.32, 5.88, 9.90, 0.28,
-			1.00, 3.14, 9.87, 3.01, 9.41, 6.02
-	};
-	float b[] = {
-			0.01,
-			0.61,
-			0.91,
-			0.99,
-			0.60,
-			0.02
-	};
-	// Answer: {0.010000, 1.154970, -0.337929, 0.044981, -0.044214, -0.000097}
-	*/
-	/*
-	// Matrix size
-	#define N 3
-	float a[] = {
-			-5, 2, 1,
-			1, -8, 3,
-			3, 1, -7
-	};
-	float b[] = {
-			2,
-			-6,
-			-16
-	};
-	// Answer: {1, 2, 3}
-	*/
-	/*
-	#define N 3
-	float a[] = {
-			1, 2, 0,
-			-1, 0, -2,
-			-3, -5, 1
-	};
-	float b[] = {
-			3,
-			-5,
-			-4
-	};
-	// Answer: {-1, 2, 3}
-	*/
-	#define N 3
-	float a[] = {
-			1, -1, 2,
-			0, 5, -7,
-			2, 3, -1
-	};
-	float b[] = {
-			4,
-			-9,
-			3
-	};
-	// Answer: {1, 1, 2}
+	Matrix m = matrix_generate(3, 1);
 
-	elimination_gold(a, b, N);
+	elimination_gold(m.a, m.b, m.size);
 
-	for (unsigned int i = 0; i < N; i++)
-		printf("%f\n", b[i]);
+	for (unsigned int i = 0; i < m.size; i++)
+		printf("%f\n", m.b[i]);
 
 	return 0;
+}
+
+Matrix matrix_generate(int size, int type) {
+	float a[1024];
+	float b[32];
+	int n;
+
+	if (type > 0) {
+		// Type is > 0: Load matrix from file
+		int* d = (int*) malloc(4096 * sizeof(int));
+		FILE* fp;
+
+		// Choose which file to read from
+		bool flag = false;
+		switch (size) {
+		case 3:
+			switch (type) {
+			case 1:
+				fp = fopen("example_3x3_1.txt", "r");
+				break;
+			case 2:
+				fp = fopen("example_3x3_2.txt", "r");
+				break;
+			case 3:
+				fp = fopen("example_3x3_3.txt", "r");
+				break;
+			default:
+				flag = true;
+				break;
+			}
+			break;
+		case 6:
+			switch (type) {
+			case 1:
+				fp = fopen("example_6x6_1.txt", "r");
+				break;
+			default:
+				flag = true;
+				break;
+			}
+			break;
+		default:
+			flag = true;
+			break;
+		}
+
+		if (flag) {
+			printf("Matrix of size %d and type %d does not exist.\n", size, type);
+			exit(0);
+		}
+
+		int r;
+		if (fscanf(fp, "%d\n", &r) == 1) {
+			n = r;
+		} else {
+			printf("Could not read matrix size.\n");
+			exit(0);
+		}
+
+		unsigned int i = 0;
+		float f;
+		while (fscanf(fp, "%f\n", &f) == 1 && i < ((n * n) + n)) {
+			if (i < (n * n))
+				a[i++] = f;
+			else
+				b[i++ - (n * n)] = f;
+		}
+
+		fclose(fp);
+	} else {
+		// Type is 0: Generate random matrix of size 'size'
+		n = size;
+
+		// Populate arrays with values between -5 and 5
+		// Distribution is not uniform
+		unsigned int i = 0;
+		for (i = 0; i < n * n; i++)
+			a[i] = (rand() % 10) - 5;
+		for (i = 0; i < n; i++)
+			b[i] = (rand() % 10) - 5;
+	}
+
+	// Copy generated matrix into a Matrix struct within allocated space
+	Matrix m;
+	m.a = (float*) malloc(n * n * sizeof(float));
+	m.b = (float*) malloc(n * sizeof(float));
+	m.size = n;
+
+	int i;
+	for (i = 0; i < n * n; i++)
+		*(m.a + i) = (float) a[i];
+
+	for (i = 0; i < n; i++)
+		*(m.b + i) = (float) b[i];
+
+	return m;
 }

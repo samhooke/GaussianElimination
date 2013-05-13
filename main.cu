@@ -27,20 +27,6 @@ int main() {
 			0.02
 	};
 */
-	/*
-	// Matrix size
-	#define N 3
-	float a[] = {
-			1, 2, 3,
-			4, 5, 6,
-			7, 8, 9
-	};
-	float b[] = {
-			1,
-			2,
-			3
-	};
-	*/
 	// Matrix size
 	#define N 3
 	float a[] = {

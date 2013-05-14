@@ -4,7 +4,7 @@ void elimination_kernel(float *a, float *b, int n, int kernel) {
 
 	// Copy data to GPU
 	int size_a = n * n;
-	int size_b = b;
+	int size_b = n;
 	float *g_a;
 	float *g_b;
 	cudaMalloc((void**)&g_a, size_a * sizeof(float));
@@ -12,16 +12,17 @@ void elimination_kernel(float *a, float *b, int n, int kernel) {
 	cudaMemcpy(g_a, a, size_a * sizeof(float), cudaMemcpyHostToDevice);
 	cudaMemcpy(g_b, b, size_b * sizeof(float), cudaMemcpyHostToDevice);
 
+	dim3 dimBlock(1,1,1);
+	dim3 dimGrid(1,1,1);
+
 	// Execute kernel on GPU
 	switch (kernel) {
 	case 0:
-		dim3 dimBlock(1,1,1);
-		dim3 dimGrid(1,1,1);
 		elimination0<<<dimGrid, dimBlock>>>(g_a, g_b, n);
 		break;
 	case 1:
-		dim3 dimBlock(n,n,1);
-		dim3 dimGrid(1,1,1);
+		dimBlock.x = n;
+		dimBlock.y = n;
 		//elimination1<<<dimGrid, dimBlock>>>(g_a, g_b, n);
 		break;
 	}
@@ -36,6 +37,6 @@ void elimination_kernel(float *a, float *b, int n, int kernel) {
 	cudaDeviceReset();
 }
 
-__global__ void elimination0(float *a, float *f, int n) {
+__global__ void elimination0(float *a, float *b, int n) {
 
 }

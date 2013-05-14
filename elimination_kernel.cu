@@ -33,6 +33,11 @@ float elimination_kernel(float *a, float *b, int n, int kernel) {
 		dimBlock.x = n;
 		elimination1<<<dimGrid, dimBlock>>>(g_a, g_b, n);
 		break;
+	case 2:
+		dimBlock.x = n + 1;
+		dimBlock.y = n;
+		elimination2<<<dimGrid, dimBlock>>>(g_a, g_b, n);
+		break;
 	}
 
 	// Copy data from GPU
@@ -110,6 +115,31 @@ __global__ void elimination1(float *a, float *b, int n) {
 		}
 	}
 #undef element
+}
+
+// Referenced from: http://www.cs.rutgers.edu/~venugopa/parallel_summer2012/ge.html
+// TODO:
+// -Modify existing code to use one matrix instead of two
+// -Also don't overwrite input matrix
+__global__ void elimination2(float *a, float *b, int n) {
+	int idx = threadIdx.x;
+	int idy = threadIdx.y;
+
+	//Allocating memory in the share memory of the device
+	__shared__ float temp[16][16];
+
+	//Copying the data to the shared memory
+	temp[idy][idx] = a[(idy * (n+1)) + idx] ;
+
+	for(unsigned int i = 1; i < n ; i++) {
+		// No thread divergence occurs
+		if((idy + i) < n) {
+			float var1 = (-1) * (temp[i - 1][i - 1] / temp[i + idy][i - 1]);
+			temp[i + idy][idx] = temp[i - 1][idx] + ((var1) * (temp[i + idy][idx]));
+		}
+		__syncthreads(); //Synchronizing all threads before next iteration
+	}
+	b[idy * (n + 1) + idx] = temp[idy][idx];
 }
 
 /*

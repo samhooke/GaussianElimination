@@ -9,17 +9,17 @@ int main() {
 	Matrix n = m;
 
 	// Perform Gaussian Elimination
+	int kernel = 0;
 	elimination_gold(m.a, m.b, m.size);
-	elimination_gold(n.a, n.b, n.size);
+	elimination_kernel(n.a, n.b, n.size, kernel);
 
 	// Compare the results with a threshold of tolerance
 	bool match_b = matrix_compare_b(m.b, n.b, m.size, 0.00001f);
 
 	// Show statistics
-	printf("%s", match_b ? "Results match!\n" : "Results do not match.\n");
+	printf("Results %s\n", match_b ? "match!" : "do not match.");
 	for (unsigned int i = 0; i < m.size; i++)
 		printf("x%-3d = %10.6f\n", i, m.b[i]);
-
 
 	return 0;
 }

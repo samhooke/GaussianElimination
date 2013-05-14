@@ -1,7 +1,6 @@
 #include "elimination_gold.h"
 #include <stdio.h>
 
-
 // Performs Gauss-Jordan elimination on the CPU; [A]{x]={b}
 // Inputs:
 //   a -> [A], the matrix of coefficients of size 'n' by 'n'
@@ -10,7 +9,13 @@
 // Outputs:
 //   Modifies 'a' into the identity matrix
 //   Modifies 'b' into the solution for {x}
-void elimination_gold(float *a, float *b, int n) {
+float elimination_gold(float *a, float *b, int n) {
+	// Start timers
+	cudaEvent_t timer1, timer2;
+	cudaEventCreate(&timer1);
+	cudaEventCreate(&timer2);
+	cudaEventRecord(timer1, 0);
+
 #define element(_x, _y) (*(a + ((_y) * (n) + (_x))))
 	unsigned int xx, yy, rr;
 	float c;
@@ -44,6 +49,14 @@ void elimination_gold(float *a, float *b, int n) {
 #endif
 	}
 #undef element
+
+	// Stop timers
+	cudaEventRecord(timer2, 0);
+	cudaEventSynchronize(timer1);
+	cudaEventSynchronize(timer2);
+	float elapsed;
+	cudaEventElapsedTime(&elapsed, timer1, timer2);
+	return elapsed;
 }
 
 // Prints a matrix in the format of [A]{b}

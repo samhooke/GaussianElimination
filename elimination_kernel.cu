@@ -1,6 +1,11 @@
 #include "elimination_kernel.h"
 
-void elimination_kernel(float *a, float *b, int n, int kernel) {
+float elimination_kernel(float *a, float *b, int n, int kernel) {
+	// Start timers
+	cudaEvent_t timer1, timer2;
+	cudaEventCreate(&timer1);
+	cudaEventCreate(&timer2);
+	cudaEventRecord(timer1, 0);
 
 	// Copy data to GPU
 	int size_a = n * n;
@@ -22,8 +27,7 @@ void elimination_kernel(float *a, float *b, int n, int kernel) {
 		break;
 	case 1:
 		dimBlock.x = n;
-		dimBlock.y = n;
-		//elimination1<<<dimGrid, dimBlock>>>(g_a, g_b, n);
+		elimination1<<<dimGrid, dimBlock>>>(g_a, g_b, n);
 		break;
 	}
 
@@ -34,9 +38,19 @@ void elimination_kernel(float *a, float *b, int n, int kernel) {
 	// Tidy up
 	cudaFree(g_a);
 	cudaFree(g_b);
+
+	// Stop timers
+	cudaEventRecord(timer2, 0);
+	cudaEventSynchronize(timer1);
+	cudaEventSynchronize(timer2);
+	float elapsed;
+	cudaEventElapsedTime(&elapsed, timer1, timer2);
+
 	cudaDeviceReset();
+	return elapsed;
 }
 
+// Naive implementation, identical to CPU code
 __global__ void elimination0(float *a, float *b, int n) {
 #define element(_x, _y) (*(a + ((_y) * (n) + (_x))))
 	unsigned int xx, yy, rr;
@@ -62,3 +76,43 @@ __global__ void elimination0(float *a, float *b, int n) {
 	}
 #undef element
 }
+
+// Inner xx loops are now parallel
+// Uses one block, so limited by max thread per block limit
+// Still uses only global memory
+__global__ void elimination1(float *a, float *b, int n) {
+#define element(_x, _y) (*(a + ((_y) * (n) + (_x))))
+	int xx, yy, rr;
+	float c;
+
+	xx = threadIdx.x;
+
+	for (yy = 0; yy < n; yy++) {
+		float pivot = element(yy, yy);
+
+		// Make the pivot be 1
+		element(xx, yy) /= pivot;
+		b[yy] /= pivot;
+
+		// Make all other values in the pivot column be zero
+		for (rr = 0; rr < n; rr++) {
+			if (rr != yy) {
+				c = element(yy, rr);
+				element(xx, rr) -= c * element(xx, yy);
+				b[rr] -= c * b[yy];
+			}
+		}
+	}
+#undef element
+}
+
+/*
+//a[threadIdx.y * n + threadIdx.x] = 3;
+int tx = threadIdx.x, ty = threadIdx.y, bx = blockIdx.x, by = blockIdx.y;
+
+//extern __shared__ float s_a[];
+//extern __shared__ float s_b[];
+
+// Load into shared memory
+//s_a[tx] = a[b]
+*/

@@ -1,8 +1,10 @@
 #include "matrix.h"
 
+#define MAX_SIZE 128
+
 Matrix matrix_generate(int size, int type) {
-	float a[1024];
-	float b[32];
+	float a[MAX_SIZE * MAX_SIZE];
+	float b[MAX_SIZE];
 	int n;
 
 	if (type > 0) {
@@ -70,6 +72,9 @@ Matrix matrix_generate(int size, int type) {
 	} else {
 		// Type is 0: Generate random matrix of size 'size'
 		n = size;
+
+		// Use same seed to ensure identical matrix
+		srand(123);
 
 		// Populate arrays with values between -5 and 5
 		// Distribution is not uniform

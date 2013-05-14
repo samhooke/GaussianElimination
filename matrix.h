@@ -5,8 +5,7 @@
 #include <stdlib.h>
 
 typedef struct {
-	float* a;
-	float* b;
+	float* elements;
 	int size;
 } Matrix;
 

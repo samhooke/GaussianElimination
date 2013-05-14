@@ -9,44 +9,48 @@
 // Outputs:
 //   Modifies 'a' into the identity matrix
 //   Modifies 'b' into the solution for {x}
-float elimination_gold(float *a, float *b, int n) {
+float elimination_gold(float *elements, int size) {
 	// Start timers
 	cudaEvent_t timer1, timer2;
 	cudaEventCreate(&timer1);
 	cudaEventCreate(&timer2);
 	cudaEventRecord(timer1, 0);
 
-#define element(_x, _y) (*(a + ((_y) * (n) + (_x))))
+#define element(_x, _y) (*(elements + ((_y) * (size + 1) + (_x))))
 	unsigned int xx, yy, rr;
 	float c;
 
-	for (yy = 0; yy < n; yy++) {
+#ifdef DEBUG
+		printf("Matrix before:\n");
+		elimination_gold_print_matrix(elements, size);
+#endif
+
+	for (yy = 0; yy < size; yy++) {
 		float pivot = element(yy, yy);
 
 		// Make the pivot be 1
-		for (xx = 0; xx < n; xx++)
+		for (xx = 0; xx < size + 1; xx++)
 			element(xx, yy) /= pivot;
-		b[yy] /= pivot;
 
 #ifdef DEBUG
 		printf("Matrix (Stage 1; Column %d):\n", yy);
-		elimination_gold_print_matrix(a, b, n);
+		elimination_gold_print_matrix(elements, size);
 #endif
 
 		// Make all other values in the pivot column be zero
-		for (rr = 0; rr < n; rr++) {
+		for (rr = 0; rr < size; rr++) {
 			if (rr != yy) {
 				c = element(yy, rr);
-				for (xx = 0; xx < n; xx++)
+				for (xx = 0; xx < size + 1; xx++)
 					element(xx, rr) -= c * element(xx, yy);
-				b[rr] -= c * b[yy];
 			}
 		}
 
 #ifdef DEBUG
 		printf("Matrix (Stage 2; Column %d):\n", yy);
-		elimination_gold_print_matrix(a, b, n);
+		elimination_gold_print_matrix(elements, size);
 #endif
+
 	}
 #undef element
 
@@ -66,14 +70,16 @@ float elimination_gold(float *a, float *b, int n) {
 //   n -> width/height of 'a', and height of 'b'
 // Outputs:
 //   Prints out the matrix as a nicely formatted table
-void elimination_gold_print_matrix(float *a, float *b, int n) {
-#define element(_x, _y) (*(a + ((_y) * (n) + (_x))))
-	unsigned int i, j;
-	for (j = 0; j < n; j++) {
-		printf("[");
-		for (i = 0; i < n; i++)
-			printf("%6.3f ", element(i, j));
-		printf("| %6.3f ]\n", b[j]);
+void elimination_gold_print_matrix(float *elements, int size) {
+	bool front, end;
+
+	for (unsigned int i = 0; i < (size + 1) * size; i++) {
+		front = (i % (size + 1) == 0);
+		end = (i % (size + 1) == size );
+
+		if (front) printf("[ ");
+		if (end) printf("| ");
+		printf("%6.3f ", *(elements + i));
+		if (end) printf("]\n");
 	}
-#undef element
 }

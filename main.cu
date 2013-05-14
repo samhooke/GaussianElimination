@@ -13,26 +13,30 @@ int main() {
 	float elapsed_gpu = 0;
 
 	// Create two copies of the same matrix
-	int size = 16;
-	int type = 0;
+	int size = 3;
+	int type = 1;
 	check("Generating matrix m");
 	Matrix m = matrix_generate(size, type);
 	check("Generating matrix n");
 	Matrix n = matrix_generate(size, type);
 
+	printf("Very much first matrix:\n");
+	elimination_gold_print_matrix(m.elements, m.size);
+
 	// Perform Gaussian Elimination
 	check("Performing Gaussian Elimination on CPU");
-	elapsed_cpu = elimination_gold(m.a, m.b, m.size);
+	elapsed_cpu = elimination_gold(m.elements, m.size);
 	check("Performing Gaussian Elimination on GPU");
-	elapsed_gpu = elimination_kernel(n.a, n.b, n.size, kernel);
+	//elapsed_gpu = elimination_kernel(n.elements, n.size, kernel);
+	elapsed_cpu = elimination_gold(n.elements, n.size);
 
 	printf("CPU (%fms)\n", elapsed_cpu);
-	elimination_gold_print_matrix(m.a, m.b, m.size);
+	elimination_gold_print_matrix(m.elements, m.size);
 	printf("GPU (%fms)\n", elapsed_gpu);
-	elimination_gold_print_matrix(n.a, n.b, n.size);
+	elimination_gold_print_matrix(n.elements, n.size);
 
 	// Compare the results with a threshold of tolerance
-	bool match_b = matrix_compare_b(m.b, n.b, m.size, 0.001f);
+	bool match_b = matrix_compare_b(m.elements, n.elements, m.size, 0.001f);
 
 	// Show statistics
 	printf("Results %s\n", match_b ? "match!" : "do not match.");

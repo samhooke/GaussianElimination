@@ -3,9 +3,8 @@
 #define MAX_SIZE 128
 
 Matrix matrix_generate(int size, int type) {
-	float a[MAX_SIZE * MAX_SIZE];
-	float b[MAX_SIZE];
-	int n;
+	float a[(MAX_SIZE + 1) * MAX_SIZE];
+	int sizeTotal = (size + 1) * size;
 
 	if (type > 0) {
 		// Type is > 0: Load matrix from file
@@ -47,31 +46,29 @@ Matrix matrix_generate(int size, int type) {
 		}
 
 		if (flag) {
-			printf("Matrix of size %d and type %d does not exist.\n", size, type);
+			fprintf(stderr, "Matrix of size %d and type %d does not exist.\n", size, type);
 			exit(0);
 		}
 
 		int r;
 		if (fscanf(fp, "%d\n", &r) == 1) {
-			n = r;
+			if (size != r) {
+				fprintf(stderr, "Requested matrix size was %d, but size of matrix in file says it is %d.\n", size, r);
+				exit(0);
+			}
 		} else {
-			printf("Could not read matrix size.\n");
+			fprintf(stderr, "Could not read matrix size.\n");
 			exit(0);
 		}
 
 		unsigned int i = 0;
 		float f;
-		while (fscanf(fp, "%f\n", &f) == 1 && i < ((n * n) + n)) {
-			if (i < (n * n))
-				a[i++] = f;
-			else
-				b[i++ - (n * n)] = f;
-		}
+		while (fscanf(fp, "%f\n", &f) == 1 && i < sizeTotal)
+			a[i++] = f;
 
 		fclose(fp);
 	} else {
 		// Type is 0: Generate random matrix of size 'size'
-		n = size;
 
 		// Use same seed to ensure identical matrix
 		srand(123);
@@ -79,35 +76,31 @@ Matrix matrix_generate(int size, int type) {
 		// Populate arrays with values between -5 and 5
 		// Distribution is not uniform
 		unsigned int i = 0;
-		for (i = 0; i < n * n; i++)
+		for (i = 0; i < sizeTotal; i++)
 			a[i] = (rand() % 10) - 5;
-		for (i = 0; i < n; i++)
-			b[i] = (rand() % 10) - 5;
 	}
 
 	// Copy generated matrix into a Matrix struct within allocated space
 	Matrix m;
-	m.a = (float*) malloc(n * n * sizeof(float));
-	m.b = (float*) malloc(n * sizeof(float));
-	m.size = n;
+	m.elements = (float*) malloc(sizeTotal * sizeof(float));
+	m.size = size;
 
-	int i;
-	for (i = 0; i < n * n; i++)
-		*(m.a + i) = (float) a[i];
-
-	for (i = 0; i < n; i++)
-		*(m.b + i) = (float) b[i];
+	for (unsigned int i = 0; i < sizeTotal; i++)
+		*(m.elements + i) = (float) a[i];
 
 	return m;
 }
 
-bool matrix_compare_b(float *mb, float *nb, int size, float tolerance) {
+bool matrix_compare_b(float *m, float *n, int size, float tolerance) {
+	int sizeTotal = (size + 1) * size;
 	bool match = true;
-	for (unsigned int i = 0; i < size; i++) {
-		if (mb[i] > nb[i] + tolerance || mb[i] < nb[i] - tolerance) {
+
+	for (unsigned int i = 0; i < sizeTotal; i++) {
+		if (m[i] > n[i] + tolerance || m[i] < n[i] - tolerance) {
 			match = false;
 			break;
 		}
 	}
+
 	return match;
 }

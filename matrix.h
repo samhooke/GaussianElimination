@@ -11,5 +11,6 @@ typedef struct {
 } Matrix;
 
 Matrix matrix_generate(int size, int type);
+bool matrix_compare_b(float *mb, float *nb, int size, float tolerance);
 
 #endif //_MATRIX_H_

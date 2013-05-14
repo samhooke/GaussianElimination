@@ -95,3 +95,14 @@ Matrix matrix_generate(int size, int type) {
 
 	return m;
 }
+
+bool matrix_compare_b(float *mb, float *nb, int size, float tolerance) {
+	bool match = true;
+	for (unsigned int i = 0; i < size; i++) {
+		if (mb[i] > nb[i] + tolerance || mb[i] < nb[i] - tolerance) {
+			match = false;
+			break;
+		}
+	}
+	return match;
+}

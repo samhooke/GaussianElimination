@@ -38,5 +38,27 @@ void elimination_kernel(float *a, float *b, int n, int kernel) {
 }
 
 __global__ void elimination0(float *a, float *b, int n) {
+#define element(_x, _y) (*(a + ((_y) * (n) + (_x))))
+	unsigned int xx, yy, rr;
+	float c;
 
+	for (yy = 0; yy < n; yy++) {
+		float pivot = element(yy, yy);
+
+		// Make the pivot be 1
+		for (xx = 0; xx < n; xx++)
+			element(xx, yy) /= pivot;
+		b[yy] /= pivot;
+
+		// Make all other values in the pivot column be zero
+		for (rr = 0; rr < n; rr++) {
+			if (rr != yy) {
+				c = element(yy, rr);
+				for (xx = 0; xx < n; xx++)
+					element(xx, rr) -= c * element(xx, yy);
+				b[rr] -= c * b[yy];
+			}
+		}
+	}
+#undef element
 }

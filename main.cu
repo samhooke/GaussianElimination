@@ -36,6 +36,8 @@ int main() {
 
 	// Show statistics
 	printf("Results %s\n", match_b ? "match!" : "do not match.");
+	float p = elapsed_cpu / elapsed_gpu;
+	printf("GPU was %2.2f%% %s\n", (p < 1 ? 1 / p : p) * 100, p < 1 ? "slower" : "faster");
 
 	return 0;
 }

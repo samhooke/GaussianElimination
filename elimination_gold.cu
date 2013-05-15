@@ -109,8 +109,11 @@ float elimination_gold2(float *a, float *b, int size) {
 			if (rr != yy) {
 				c = element(yy, rr);
 
-				// Start from yy instead of 0
-				for (xx = yy; xx < size + 1; xx++)
+				// We know that this value will be zero
+				element(yy, rr) = 0;
+
+				// Start from yy + 1 instead of 0. The + 1 is because we have already set one value to zero
+				for (xx = yy + 1; xx < size + 1; xx++)
 					element(xx, rr) -= c * element(xx, yy);
 			}
 		}

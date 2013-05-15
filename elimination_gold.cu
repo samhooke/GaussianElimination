@@ -67,6 +67,71 @@ float elimination_gold(float *a, float *b, int size) {
 	return elapsed;
 }
 
+float elimination_gold2(float *a, float *b, int size) {
+#define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
+	unsigned int xx, yy, rr;
+	float c;
+
+	// Start timers
+	cudaEvent_t timer1, timer2;
+	cudaEventCreate(&timer1);
+	cudaEventCreate(&timer2);
+	cudaEventRecord(timer1, 0);
+
+	// The matrix will be modified in place, so first make a copy of matrix a
+	for (unsigned int i = 0; i < (size + 1) * size; i++)
+		b[i] = a[i];
+
+#ifdef DEBUG
+		printf("Matrix before:\n");
+		elimination_gold_print_matrix(elements, size);
+#endif
+
+	for (yy = 0; yy < size; yy++) {
+		float pivot = element(yy, yy);
+
+		// Make the pivot be 1
+
+		// We know that pivot / pivot will equal 1, so just set it to 1
+		element(yy, yy) = 1;
+
+		// Start from yy + 1 instead of 0. The + 1 is because we have calculated done the pivot
+		for (xx = yy + 1; xx < size + 1; xx++)
+			element(xx, yy) /= pivot;
+
+#ifdef DEBUG
+		printf("Matrix (Stage 1; Column %d):\n", yy);
+		elimination_gold_print_matrix(elements, size);
+#endif
+
+		// Make all other values in the pivot column be zero
+		for (rr = 0; rr < size; rr++) {
+			if (rr != yy) {
+				c = element(yy, rr);
+
+				// Start from yy instead of 0
+				for (xx = yy; xx < size + 1; xx++)
+					element(xx, rr) -= c * element(xx, yy);
+			}
+		}
+
+#ifdef DEBUG
+		printf("Matrix (Stage 2; Column %d):\n", yy);
+		elimination_gold_print_matrix(elements, size);
+#endif
+
+	}
+#undef element
+
+	// Stop timers
+	cudaEventRecord(timer2, 0);
+	cudaEventSynchronize(timer1);
+	cudaEventSynchronize(timer2);
+	float elapsed;
+	cudaEventElapsedTime(&elapsed, timer1, timer2);
+	return elapsed;
+}
+
 // Prints a matrix in the format of [A]{b}
 // Inputs:
 //   a -> [A], the matrix of coefficients of size 'n' by 'n'

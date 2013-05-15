@@ -26,7 +26,8 @@ int main() {
 	check("Performing Gaussian Elimination on CPU");
 	elapsed_cpu = elimination_gold(m_in.elements, m_out_cpu.elements, size);
 	check("Performing Gaussian Elimination on GPU");
-	elapsed_gpu = elimination_kernel(m_in.elements, m_out_gpu.elements, size, kernel);
+	elapsed_gpu = elimination_gold2(m_in.elements, m_out_gpu.elements, size);
+	//elapsed_gpu = elimination_kernel(m_in.elements, m_out_gpu.elements, size, kernel);
 
 	printf("CPU (%fms)\n", elapsed_cpu);
 	elimination_gold_print_matrix(m_out_cpu.elements, size);

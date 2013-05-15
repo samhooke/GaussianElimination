@@ -13,8 +13,8 @@ int main() {
 	float elapsed_gpu = 0;
 
 	// Create two identical input matrices, and two blank output matrices
-	int size = 15;
-	int type = -1;
+	int size = 3;
+	int type = 1;
 	check("Generating input matrix m_in");
 	Matrix m_in = matrix_generate(size, type);
 	check("Generating blank output matrix m_out_cpu");
@@ -40,7 +40,7 @@ int main() {
 	// Show statistics
 	printf("Results %s\n", match_b ? "match!" : "do not match.");
 	float p = elapsed_cpu / elapsed_gpu;
-	printf("GPU was %2.2f%% %s\n", (p < 1 ? 1 / p : p) * 100, p < 1 ? "slower" : "faster");
+	printf("GPU was %2.2f%% %s\n", ((p < 1 ? 1 / p : p) - 1) * 100, p < 1 ? "slower" : "faster");
 
 	return 0;
 }

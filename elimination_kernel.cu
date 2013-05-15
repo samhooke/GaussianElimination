@@ -1,6 +1,6 @@
 #include "elimination_kernel.h"
 
-float elimination_kernel(float *a, float *b, int n, int kernel) {
+float elimination_kernel(float *a, float *b, int size, int kernel) {
 	// Start timers
 	check("Creating timers");
 	cudaEvent_t timer1, timer2;
@@ -9,16 +9,13 @@ float elimination_kernel(float *a, float *b, int n, int kernel) {
 	cudaEventRecord(timer1, 0);
 
 	// Copy data to GPU
-	int size_a = n * n;
-	int size_b = n;
-	float *g_a;
-	float *g_b;
+	int sizeTotal = (size + 1) * size;
+	float *g_a, *g_b;
 	check("Allocating memory");
-	cudaMalloc((void**)&g_a, size_a * sizeof(float));
-	cudaMalloc((void**)&g_b, size_b * sizeof(float));
+	cudaMalloc((void**)&g_a, sizeTotal * sizeof(float));
+	cudaMalloc((void**)&g_b, sizeTotal * sizeof(float));
 	check("Copying memory from host to device");
-	cudaMemcpy(g_a, a, size_a * sizeof(float), cudaMemcpyHostToDevice);
-	cudaMemcpy(g_b, b, size_b * sizeof(float), cudaMemcpyHostToDevice);
+	cudaMemcpy(g_a, a, sizeTotal * sizeof(float), cudaMemcpyHostToDevice);
 
 	dim3 dimBlock(1,1,1);
 	dim3 dimGrid(1,1,1);
@@ -27,23 +24,22 @@ float elimination_kernel(float *a, float *b, int n, int kernel) {
 	check("Executing kernel on GPU");
 	switch (kernel) {
 	case 0:
-		elimination0<<<dimGrid, dimBlock>>>(g_a, g_b, n);
+		elimination0<<<dimGrid, dimBlock>>>(g_a, g_b, size);
 		break;
 	case 1:
-		dimBlock.x = n;
-		elimination1<<<dimGrid, dimBlock>>>(g_a, g_b, n);
+		dimBlock.x = size + 1;
+		elimination1<<<dimGrid, dimBlock>>>(g_a, g_b, size);
 		break;
 	case 2:
-		dimBlock.x = n + 1;
-		dimBlock.y = n;
-		elimination2<<<dimGrid, dimBlock>>>(g_a, g_b, n);
+		dimBlock.x = size + 1;
+		dimBlock.y = size;
+		elimination2<<<dimGrid, dimBlock>>>(g_a, g_b, size);
 		break;
 	}
 
 	// Copy data from GPU
 	check("Copying data from device to host");
-	cudaMemcpy(a, g_a, size_a * sizeof(float), cudaMemcpyDeviceToHost);
-	cudaMemcpy(b, g_b, size_b * sizeof(float), cudaMemcpyDeviceToHost);
+	cudaMemcpy(b, g_b, sizeTotal * sizeof(float), cudaMemcpyDeviceToHost);
 
 	// Tidy up
 	check("Freeing memory");
@@ -62,26 +58,28 @@ float elimination_kernel(float *a, float *b, int n, int kernel) {
 }
 
 // Naive implementation, identical to CPU code
-__global__ void elimination0(float *a, float *b, int n) {
-#define element(_x, _y) (*(a + ((_y) * (n) + (_x))))
+__global__ void elimination0(float *a, float *b, int size) {
+#define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
 	unsigned int xx, yy, rr;
 	float c;
 
-	for (yy = 0; yy < n; yy++) {
+	// The matrix will be modified in place, so first make a copy of matrix a
+	for (unsigned int i = 0; i < (size + 1) * size; i++)
+		b[i] = a[i];
+
+	for (yy = 0; yy < size; yy++) {
 		float pivot = element(yy, yy);
 
 		// Make the pivot be 1
-		for (xx = 0; xx < n; xx++)
+		for (xx = 0; xx < size + 1; xx++)
 			element(xx, yy) /= pivot;
-		b[yy] /= pivot;
 
 		// Make all other values in the pivot column be zero
-		for (rr = 0; rr < n; rr++) {
+		for (rr = 0; rr < size; rr++) {
 			if (rr != yy) {
 				c = element(yy, rr);
-				for (xx = 0; xx < n; xx++)
+				for (xx = 0; xx < size + 1; xx++)
 					element(xx, rr) -= c * element(xx, yy);
-				b[rr] -= c * b[yy];
 			}
 		}
 	}
@@ -91,64 +89,49 @@ __global__ void elimination0(float *a, float *b, int n) {
 // Inner xx loops are now parallel
 // Uses one block, so limited by max thread per block limit
 // Still uses only global memory
-__global__ void elimination1(float *a, float *b, int n) {
-#define element(_x, _y) (*(a + ((_y) * (n) + (_x))))
-	int xx, yy, rr;
-	float c;
+__global__ void elimination1(float *a, float *b, int size) {
+#define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
+	unsigned int xx, yy, rr;
+
+	// The matrix will be modified in place, so first make a copy of matrix a
+	for (unsigned int i = 0; i < (size + 1) * size; i++)
+		b[i] = a[i];
 
 	xx = threadIdx.x;
 
-	for (yy = 0; yy < n; yy++) {
+	for (yy = 0; yy < size; yy++) {
 		float pivot = element(yy, yy);
 
 		// Make the pivot be 1
 		element(xx, yy) /= pivot;
-		b[yy] /= pivot;
 
 		// Make all other values in the pivot column be zero
-		for (rr = 0; rr < n; rr++) {
-			if (rr != yy) {
-				c = element(yy, rr);
-				element(xx, rr) -= c * element(xx, yy);
-				b[rr] -= c * b[yy];
-			}
+		for (rr = 0; rr < size; rr++) {
+			if (rr != yy)
+				element(xx, rr) -= element(yy, rr) * element(xx, yy);
 		}
 	}
 #undef element
 }
 
 // Referenced from: http://www.cs.rutgers.edu/~venugopa/parallel_summer2012/ge.html
-// TODO:
-// -Modify existing code to use one matrix instead of two
-// -Also don't overwrite input matrix
 __global__ void elimination2(float *a, float *b, int n) {
 	int idx = threadIdx.x;
 	int idy = threadIdx.y;
 
-	//Allocating memory in the share memory of the device
+	// Allocate memory in the shared memory of the device
 	__shared__ float temp[16][16];
 
-	//Copying the data to the shared memory
-	temp[idy][idx] = a[(idy * (n+1)) + idx] ;
+	// Copy the data to the shared memory
+	temp[idy][idx] = a[(idy * (n+1)) + idx];
 
-	for(unsigned int i = 1; i < n ; i++) {
+	for (unsigned int i = 1; i < n; i++) {
 		// No thread divergence occurs
-		if((idy + i) < n) {
-			float var1 = (-1) * (temp[i - 1][i - 1] / temp[i + idy][i - 1]);
-			temp[i + idy][idx] = temp[i - 1][idx] + ((var1) * (temp[i + idy][idx]));
+		if ((idy + i) < n) {
+			float c = (-1) * (temp[i - 1][i - 1] / temp[i + idy][i - 1]);
+			temp[i + idy][idx] = temp[i - 1][idx] + ((c) * (temp[i + idy][idx]));
 		}
-		__syncthreads(); //Synchronizing all threads before next iteration
+		__syncthreads();
 	}
 	b[idy * (n + 1) + idx] = temp[idy][idx];
 }
-
-/*
-//a[threadIdx.y * n + threadIdx.x] = 3;
-int tx = threadIdx.x, ty = threadIdx.y, bx = blockIdx.x, by = blockIdx.y;
-
-//extern __shared__ float s_a[];
-//extern __shared__ float s_b[];
-
-// Load into shared memory
-//s_a[tx] = a[b]
-*/

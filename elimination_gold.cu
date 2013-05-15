@@ -83,7 +83,7 @@ void elimination_gold_print_matrix(float *elements, int size) {
 
 		if (front) printf("[ ");
 		if (end) printf("| ");
-		printf("%6.3f ", *(elements + i));
+		printf("%8.4f ", *(elements + i));
 		if (end) printf("]\n");
 	}
 }

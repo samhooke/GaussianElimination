@@ -6,28 +6,28 @@
 
 int main() {
 	// Select GPU kernel
-	int kernel = 2;
+	int kernel = 1;
 
 	// Timers
 	float elapsed_cpu = 0;
 	float elapsed_gpu = 0;
 
 	// Create two identical input matrices, and two blank output matrices
-	int size = 3;
-	int type = 1;
+	int size = 16;
+	int type = -1;
 	check("Generating input matrix m_in");
 	Matrix m_in = matrix_generate(size, type);
 	check("Generating blank output matrix m_out_cpu");
-	Matrix m_out_cpu = matrix_generate(size, -1);
+	Matrix m_out_cpu = matrix_generate(size, 0);
 	check("Generating blank output matrix m_out_gpu");
-	Matrix m_out_gpu = matrix_generate(size, -1);
+	Matrix m_out_gpu = matrix_generate(size, 0);
 
 	// Perform Gaussian Elimination
 	check("Performing Gaussian Elimination on CPU");
 	elapsed_cpu = elimination_gold(m_in.elements, m_out_cpu.elements, size);
 	check("Performing Gaussian Elimination on GPU");
-	//elapsed_gpu = elimination_kernel(n.elements, n.size, kernel);
-	elapsed_gpu = elimination_gold(m_in.elements, m_out_gpu.elements, size);
+	elapsed_gpu = elimination_kernel(m_in.elements, m_out_gpu.elements, size, kernel);
+	//elapsed_gpu = elimination_gold(m_in.elements, m_out_gpu.elements, size);
 
 	printf("CPU (%fms)\n", elapsed_cpu);
 	elimination_gold_print_matrix(m_out_cpu.elements, size);

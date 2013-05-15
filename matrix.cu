@@ -2,6 +2,10 @@
 
 #define MAX_SIZE 128
 
+// Generates a matrix of dimensions size by size
+// If type == -1, the matrix is filled with random values
+// If type ==  0, the matrix is filled with zeros
+// If type >=  1, the matrix is loaded from file
 Matrix matrix_generate(int size, int type) {
 	float a[(MAX_SIZE + 1) * MAX_SIZE];
 	int sizeTotal = (size + 1) * size;
@@ -67,17 +71,24 @@ Matrix matrix_generate(int size, int type) {
 			a[i++] = f;
 
 		fclose(fp);
-	} else {
-		// Type is 0: Generate random matrix of size 'size'
+	} else if (type == -1) {
+		// Type is -1: Generate random matrix of size 'size'
 
 		// Use same seed to ensure identical matrix
 		srand(123);
 
 		// Populate arrays with values between -5 and 5
 		// Distribution is not uniform
-		unsigned int i = 0;
-		for (i = 0; i < sizeTotal; i++)
+		for (unsigned int i = 0; i < sizeTotal; i++)
 			a[i] = (rand() % 10) - 5;
+	} else if (type == 0) {
+		// Type is 0: Generate a blank matrix
+
+		for (unsigned int i = 0; i < sizeTotal; i++)
+			a[i] = 0;
+	} else {
+		fprintf(stderr, "Invalid type: %d\n", type);
+		exit(0);
 	}
 
 	// Copy generated matrix into a Matrix struct within allocated space

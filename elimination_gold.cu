@@ -9,16 +9,20 @@
 // Outputs:
 //   Modifies 'a' into the identity matrix
 //   Modifies 'b' into the solution for {x}
-float elimination_gold(float *elements, int size) {
+float elimination_gold(float *a, float *b, int size) {
+#define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
+	unsigned int xx, yy, rr;
+	float c;
+
 	// Start timers
 	cudaEvent_t timer1, timer2;
 	cudaEventCreate(&timer1);
 	cudaEventCreate(&timer2);
 	cudaEventRecord(timer1, 0);
 
-#define element(_x, _y) (*(elements + ((_y) * (size + 1) + (_x))))
-	unsigned int xx, yy, rr;
-	float c;
+	// The matrix will be modified in place, so first make a copy of matrix a
+	for (unsigned int i = 0; i < (size + 1) * size; i++)
+		b[i] = a[i];
 
 #ifdef DEBUG
 		printf("Matrix before:\n");

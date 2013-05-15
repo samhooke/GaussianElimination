@@ -1,5 +1,7 @@
 #include "elimination_kernel.h"
 
+#define BLOCK_SIZE 16
+
 float elimination_kernel(float *a, float *b, int size, int kernel) {
 	// Start timers
 	check("Creating timers");
@@ -35,6 +37,25 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 		dimBlock.y = size;
 		elimination2<<<dimGrid, dimBlock>>>(g_a, g_b, size);
 		break;
+	case 3:
+		dimBlock.x = size + 1;
+		dimBlock.y = size;
+		elimination3<<<dimGrid, dimBlock>>>(g_a, g_b, size);
+		break;
+	case 4:
+		dimBlock.x = size + 1;
+		dimBlock.y = size;
+		elimination4<<<dimGrid, dimBlock>>>(g_a, g_b, size);
+		break;
+	case 5:
+		dimBlock.x = BLOCK_SIZE;
+		dimBlock.y = BLOCK_SIZE;
+		dimGrid.x = 1;
+		dimGrid.y = 1;
+		//dimGrid.x = (size + 1 - 1) / BLOCK_SIZE + 1;
+		//dimGrid.y = (size - 1) / BLOCK_SIZE + 1;
+		elimination5<<<dimGrid, dimBlock>>>(g_a, g_b, size);
+		break;
 	}
 
 	// Copy data from GPU
@@ -57,7 +78,7 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 	return elapsed;
 }
 
-// Naive implementation, identical to CPU code
+// Very, very naive implementation, identical to CPU code
 __global__ void elimination0(float *a, float *b, int size) {
 #define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
 	unsigned int xx, yy, rr;
@@ -87,7 +108,7 @@ __global__ void elimination0(float *a, float *b, int size) {
 }
 
 // Inner xx loops are now parallel
-// Uses one block, so limited by max thread per block limit
+// Uses one block, so limited to 512 threads, so the matrix can be at most of size 22
 // Still uses only global memory
 __global__ void elimination1(float *a, float *b, int size) {
 #define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
@@ -114,24 +135,128 @@ __global__ void elimination1(float *a, float *b, int size) {
 #undef element
 }
 
-// Referenced from: http://www.cs.rutgers.edu/~venugopa/parallel_summer2012/ge.html
-__global__ void elimination2(float *a, float *b, int n) {
-	int idx = threadIdx.x;
-	int idy = threadIdx.y;
+// Both xx and rr loops are now in parallel
+__global__ void elimination2(float *a, float *b, int size) {
+#define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
+	unsigned int xx, yy, rr;
 
-	// Allocate memory in the shared memory of the device
-	__shared__ float temp[16][16];
+	// The matrix will be modified in place, so first make a copy of matrix a
+	for (unsigned int i = 0; i < (size + 1) * size; i++)
+		b[i] = a[i];
 
-	// Copy the data to the shared memory
-	temp[idy][idx] = a[(idy * (n+1)) + idx];
+	__syncthreads();
 
-	for (unsigned int i = 1; i < n; i++) {
-		// No thread divergence occurs
-		if ((idy + i) < n) {
-			float c = (-1) * (temp[i - 1][i - 1] / temp[i + idy][i - 1]);
-			temp[i + idy][idx] = temp[i - 1][idx] + ((c) * (temp[i + idy][idx]));
-		}
+	xx = threadIdx.x;
+	rr = threadIdx.y;
+
+	for (yy = 0; yy < size; yy++) {
+		float pivot = element(yy, yy);
+
+		// Make the pivot be 1
+		element(xx, yy) /= pivot;
+
+		// Make all other values in the pivot column be zero
+		if (rr != yy)
+			element(xx, rr) -= element(yy, rr) * element(xx, yy);
+
 		__syncthreads();
 	}
-	b[idy * (n + 1) + idx] = temp[idy][idx];
+#undef element
+}
+
+// Data is copied in parallel
+__global__ void elimination3(float *a, float *b, int size) {
+#define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
+	unsigned int xx, yy, rr;
+
+	xx = threadIdx.x;
+	rr = threadIdx.y;
+
+	int tid = rr * (size + 1) + xx;
+
+	// The matrix will be modified in place, so first make a copy of matrix a
+	b[tid] = a[tid];
+
+	__syncthreads();
+
+	for (yy = 0; yy < size; yy++) {
+		float pivot = element(yy, yy);
+
+		// Make the pivot be 1
+		element(xx, yy) /= pivot;
+
+		// Make all other values in the pivot column be zero
+		if (rr != yy)
+			element(xx, rr) -= element(yy, rr) * element(xx, yy);
+
+		__syncthreads();
+	}
+#undef element
+}
+
+// Shared memory is used
+// However, still limited to matrices of size 22
+__global__ void elimination4(float *a, float *b, int size) {
+#define element(_x, _y) (*(sdata + ((_y) * (size + 1) + (_x))))
+	unsigned int xx, yy, rr;
+
+	// With a limit of 512 threads per block, and only one block, this results in a maximum
+	// of a matrix size 22, which requires (22 + 1) x 22 values
+	__shared__ float sdata[(22 + 1) * 22];
+
+	xx = threadIdx.x;
+	rr = threadIdx.y;
+
+	int tid = rr * (size + 1) + xx;
+
+	// The matrix will be modified in place, so first make a copy of matrix a
+	sdata[tid] = a[tid];
+
+	for (yy = 0; yy < size; yy++) {
+
+		__syncthreads();
+
+		// Make the pivot be 1
+		element(xx, yy) /= element(yy, yy);
+
+		__syncthreads();
+
+		// Make all other values in the pivot column be zero
+		if (rr != yy)
+			element(xx, rr) -= element(yy, rr) * element(xx, yy);
+	}
+
+	b[tid] = sdata[tid];
+#undef element
+}
+
+__global__ void elimination5(float *a, float *b, int size) {
+#define element(_x, _y) (*(sdata + ((_y) * (size + 1) + (_x))))
+	unsigned int xx, yy, rr;
+
+	__shared__ float sdata[BLOCK_SIZE * BLOCK_SIZE];
+
+	xx = threadIdx.x;
+	rr = threadIdx.y;
+
+	int tid = rr * (size + 1) + xx;
+
+	sdata[tid] = a[blockDim.y * BLOCK_SIZE + blockDim.x + tid];
+
+	for (yy = 0; yy < size; yy++) {
+
+		__syncthreads();
+
+		// Make the pivot be 1
+		element(xx, yy) /= element(yy, yy);
+
+		__syncthreads();
+
+		// Make all other values in the pivot column be zero
+		if (rr != yy)
+			element(xx, rr) -= element(yy, rr) * element(xx, yy);
+	}
+
+	b[blockDim.y * BLOCK_SIZE + blockDim.x + tid] = sdata[tid];
+#undef element
 }

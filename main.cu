@@ -13,8 +13,8 @@ int main() {
 	float elapsed_gpu = 0;
 
 	// Create two identical input matrices, and two blank output matrices
-	int size = 3;
-	int type = 1;
+	int size = 22;
+	int type = -1;
 	check("Generating input matrix m_in");
 	Matrix m_in = matrix_generate(size, type);
 	check("Generating blank output matrix m_out_cpu");
@@ -26,8 +26,8 @@ int main() {
 	check("Performing Gaussian Elimination on CPU");
 	elapsed_cpu = elimination_gold(m_in.elements, m_out_cpu.elements, size);
 	check("Performing Gaussian Elimination on GPU");
-	elapsed_gpu = elimination_gold3(m_in.elements, m_out_gpu.elements, size);
-	//elapsed_gpu = elimination_kernel(m_in.elements, m_out_gpu.elements, size, kernel);
+	//elapsed_gpu = elimination_gold2(m_in.elements, m_out_gpu.elements, size);
+	elapsed_gpu = elimination_kernel(m_in.elements, m_out_gpu.elements, size, kernel);
 
 	printf("CPU (%fms)\n", elapsed_cpu);
 	elimination_gold_print_matrix(m_out_cpu.elements, size);
@@ -35,7 +35,7 @@ int main() {
 	elimination_gold_print_matrix(m_out_gpu.elements, size);
 
 	// Compare the results with a threshold of tolerance
-	bool match_b = matrix_compare_b(m_out_cpu.elements, m_out_gpu.elements, size, 0.001f);
+	bool match_b = matrix_compare_b(m_out_cpu.elements, m_out_gpu.elements, size, 0.01f);
 
 	// Show statistics
 	printf("Column 'b' %s\n", match_b ? "match!" : "do not match.");

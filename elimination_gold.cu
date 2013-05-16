@@ -137,6 +137,8 @@ float elimination_gold2(float *a, float *b, int size) {
 	return elapsed;
 }
 
+// This method suffers some loss in precision and is also slower
+// However, the main loop is simpler
 float elimination_gold3(float *a, float *b, int size) {
 	// Start timers
 	cudaEvent_t timer1, timer2;
@@ -146,7 +148,7 @@ float elimination_gold3(float *a, float *b, int size) {
 
 #define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
 	unsigned int xx, yy, rr;
-	float c;
+	float pivot, c;
 
 	for (unsigned int i = 0; i < (size + 1) * size; i++)
 		b[i] = a[i];
@@ -157,7 +159,7 @@ float elimination_gold3(float *a, float *b, int size) {
 #endif
 
 	for (yy = 0; yy < size; yy++) {
-		float pivot = element(yy, yy);
+		pivot = element(yy, yy);
 
 		for (rr = 0; rr < size; rr++) {
 			if (rr != yy) {
@@ -177,7 +179,7 @@ float elimination_gold3(float *a, float *b, int size) {
 	}
 
 	// However, one final division is still required for the last column
-	for (yy = 0; yy < size ; yy++) {
+	for (yy = 0; yy < size; yy++) {
 		element(size, yy) /= element(yy, yy);
 	}
 #undef element

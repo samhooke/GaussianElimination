@@ -13,10 +13,16 @@ int main() {
 	float elapsed_gpu = 0;
 
 	// Create two identical input matrices, and two blank output matrices
-	int size = 16;
+	int size = 64;
 	int type = -1;
 	check("Generating input matrix m_in");
+
+	fprintf(stderr, "Program is still alive (1)\n");
+
 	Matrix m_in = matrix_generate(size, type);
+
+	fprintf(stderr, "Program is still alive (2)\n");
+
 	check("Generating blank output matrix m_out_cpu");
 	Matrix m_out_cpu = matrix_generate(size, 0);
 	check("Generating blank output matrix m_out_gpu");
@@ -28,11 +34,12 @@ int main() {
 	check("Performing Gaussian Elimination on GPU");
 	//elapsed_gpu = elimination_gold2(m_in.elements, m_out_gpu.elements, size);
 	elapsed_gpu = elimination_kernel(m_in.elements, m_out_gpu.elements, size, kernel);
+	check("Finished Gaussian Elimination on GPU");
 
 	printf("CPU (%fms)\n", elapsed_cpu);
-	elimination_gold_print_matrix(m_out_cpu.elements, size);
+	//elimination_gold_print_matrix(m_out_cpu.elements, size);
 	printf("GPU (%fms)\n", elapsed_gpu);
-	elimination_gold_print_matrix(m_out_gpu.elements, size);
+	//elimination_gold_print_matrix(m_out_gpu.elements, size);
 
 	// Compare the results with a threshold of tolerance
 	bool match_b = matrix_compare_b(m_out_cpu.elements, m_out_gpu.elements, size, 0.01f);

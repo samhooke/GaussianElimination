@@ -1,18 +1,27 @@
 #include "matrix.h"
 
-#define MAX_SIZE 128
+#define MAX_SIZE 1024
+#define MAX_SIZE_TOTAL (MAX_SIZE + 1) * MAX_SIZE
+#define MAX_FILE_READ_SIZE MAX_SIZE * 10 // Some arbitrary number larger than MAX_SIZE
 
 // Generates a matrix of dimensions size by size
 // If type == -1, the matrix is filled with random values
 // If type ==  0, the matrix is filled with zeros
 // If type >=  1, the matrix is loaded from file
 Matrix matrix_generate(int size, int type) {
-	float a[(MAX_SIZE + 1) * MAX_SIZE];
+
 	int sizeTotal = (size + 1) * size;
+
+	if (sizeTotal > MAX_SIZE_TOTAL) {
+		fprintf(stderr, "Requested size %d (%dx%d) bigger than max size %d.\n", sizeTotal, size + 1, size, MAX_SIZE_TOTAL);
+		exit(0);
+	}
+
+	float a[MAX_SIZE_TOTAL];
 
 	if (type > 0) {
 		// Type is > 0: Load matrix from file
-		int* d = (int*) malloc(4096 * sizeof(int));
+		int* d = (int*) malloc(MAX_FILE_READ_SIZE * sizeof(int));
 		FILE* fp;
 
 		// Choose which file to read from
@@ -79,8 +88,9 @@ Matrix matrix_generate(int size, int type) {
 
 		// Populate arrays with values between -5 and 5
 		// Distribution is not uniform
-		for (unsigned int i = 0; i < sizeTotal; i++)
+		for (unsigned int i = 0; i < sizeTotal; i++) {
 			a[i] = (rand() % 10) - 5;
+		}
 	} else if (type == 0) {
 		// Type is 0: Generate a blank matrix
 

@@ -108,6 +108,15 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 
 		elimination9<<<dimGrid, dimBlock>>>(g_b, size);
 		break;
+	case 10:
+		dimBlock.x = size + 1;
+		dimBlock.y = size;
+
+		// Copy a to g_b so it can simply be modified in place
+		cudaMemcpy(g_b, a, sizeTotal * sizeof(float), cudaMemcpyHostToDevice);
+
+		elimination10<<<dimGrid, dimBlock>>>(g_b, size);
+		break;
 	}
 
 	// Copy data from GPU
@@ -381,6 +390,8 @@ __global__ void elimination8_2(float *a, int size) {
 #undef element
 }
 
+// A combination of both 8_1 and 8_2
+// This opens up the possibility of using shared memory
 __global__ void elimination9(float *a, int size) {
 #define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 	int x = threadIdx.x;
@@ -400,5 +411,37 @@ __global__ void elimination9(float *a, int size) {
 
 	int yy = threadIdx.y * (size + 1) + threadIdx.x;
 	element(size, yy) /= element(yy, yy);
+#undef element
+}
+
+// Uses shared memory, but uses only one block
+// Limited by amount of shared memory per block
+__global__ void elimination10(float *a, int size) {
+#define element(_x, _y) (*(sdata + ((_y) * (size + 1) + (_x))))
+
+	int x = threadIdx.x;
+	int y = threadIdx.y;
+	int tid = y * (size + 1) + x;
+
+	__shared__ float sdata[(size + 1) * size];
+	sdata[tid] = a[tid];
+
+	float cp;
+
+	for (int pivot = 0; pivot < size; pivot++) {
+
+		cp = element(pivot, y) / element(pivot, pivot);
+
+		if (y != pivot)
+			element(x, y) -= cp * element(x, pivot);
+
+		__syncthreads();
+	}
+
+	element(size, tid) /= element(tid, tid);
+
+	__syncthreads();
+
+	a[tid] = sdata[tid];
 #undef element
 }

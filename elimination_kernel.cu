@@ -17,9 +17,13 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 	cudaMalloc((void**)&g_a, sizeTotal * sizeof(float));
 	cudaMalloc((void**)&g_b, sizeTotal * sizeof(float));
 
+	check("Copying memory from host to device");
 	if (kernel < 8) {
-		check("Copying memory from host to device");
+		// Copy a to g_a which the device will use for reference
 		cudaMemcpy(g_a, a, sizeTotal * sizeof(float), cudaMemcpyHostToDevice);
+	} else {
+		// Copy a to g_b which the device will modify in place
+		cudaMemcpy(g_b, a, sizeTotal * sizeof(float), cudaMemcpyHostToDevice);
 	}
 
 	dim3 dimBlock(1,1,1);
@@ -92,9 +96,6 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 		dimBlock.x = size + 1;
 		dimBlock.y = size;
 
-		// Copy a to g_b so it can simply be modified in place
-		cudaMemcpy(g_b, a, sizeTotal * sizeof(float), cudaMemcpyHostToDevice);
-
 		for (unsigned int i = 0; i < size; i++)
 			elimination8_1<<<dimGrid, dimBlock>>>(g_b, size, i);
 		elimination8_2<<<dimGrid, dimBlock>>>(g_b, size);
@@ -103,19 +104,20 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 		dimBlock.x = size + 1;
 		dimBlock.y = size;
 
-		// Copy a to g_b so it can simply be modified in place
-		cudaMemcpy(g_b, a, sizeTotal * sizeof(float), cudaMemcpyHostToDevice);
-
 		elimination9<<<dimGrid, dimBlock>>>(g_b, size);
 		break;
 	case 10:
 		dimBlock.x = size + 1;
 		dimBlock.y = size;
 
-		// Copy a to g_b so it can simply be modified in place
-		cudaMemcpy(g_b, a, sizeTotal * sizeof(float), cudaMemcpyHostToDevice);
-
 		elimination10<<<dimGrid, dimBlock>>>(g_b, size);
+		break;
+	case 11:
+		dimBlock.x = size + 1;
+		dimBlock.y = size;
+
+		elimination11_1<<<dimGrid, dimBlock>>>(g_b, size);
+		elimination11_2<<<dimGrid, dimBlock>>>(g_b, size);
 		break;
 	}
 
@@ -423,7 +425,7 @@ __global__ void elimination10(float *a, int size) {
 	int y = threadIdx.y;
 	int tid = y * (size + 1) + x;
 
-	__shared__ float sdata[(size + 1) * size];
+	__shared__ float sdata[(22 + 1) * 22]; // Max size that will fit is 22
 	sdata[tid] = a[tid];
 
 	float cp;
@@ -443,5 +445,38 @@ __global__ void elimination10(float *a, int size) {
 	__syncthreads();
 
 	a[tid] = sdata[tid];
+#undef element
+}
+
+__global__ void elimination11_1(float *a, int size) {
+#define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
+
+	int x = threadIdx.x + blockIdx.x * blockDim.x;
+	int y = threadIdx.y + blockIdx.y * blockDim.y;
+
+	float cp;
+
+	for (int pivot = 0; pivot < size; pivot++) {
+
+		cp = element(pivot, y) / element(pivot, pivot);
+
+		if (y != pivot)
+			element(x, y) -= cp * element(x, pivot);
+
+		__syncthreads();
+	}
+
+#undef element
+}
+
+__global__ void elimination11_2(float *a, int size) {
+#define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
+
+	int x = threadIdx.x + blockIdx.x * blockDim.x;
+	int y = threadIdx.y + blockIdx.y * blockDim.y;
+	int tid = y * (size + 1) + x;
+
+	element(size, tid) /= element(tid, tid);
+
 #undef element
 }

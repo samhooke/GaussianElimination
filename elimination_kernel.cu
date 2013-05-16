@@ -16,8 +16,11 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 	check("Allocating memory");
 	cudaMalloc((void**)&g_a, sizeTotal * sizeof(float));
 	cudaMalloc((void**)&g_b, sizeTotal * sizeof(float));
-	check("Copying memory from host to device");
-	cudaMemcpy(g_a, a, sizeTotal * sizeof(float), cudaMemcpyHostToDevice);
+
+	if (kernel < 8) {
+		check("Copying memory from host to device");
+		cudaMemcpy(g_a, a, sizeTotal * sizeof(float), cudaMemcpyHostToDevice);
+	}
 
 	dim3 dimBlock(1,1,1);
 	dim3 dimGrid(1,1,1);
@@ -88,14 +91,22 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 	case 8:
 		dimBlock.x = size + 1;
 		dimBlock.y = size;
-		//dimGrid.x = (size - 1) / BLOCK_SIZE + 1;
-		elimination8_1<<<dimGrid, dimBlock>>>(g_a, g_b, size, 0);
-		for (unsigned int i = 1; i < size; i++) {
-			elimination8_1<<<dimGrid, dimBlock>>>(g_b, g_b, size, i);
-		}
-		dimBlock.x = (size + 1) * size;
-		dimBlock.y = 1;
-		elimination8_2<<<dimGrid, dimBlock>>>(g_b, g_b, size);
+
+		// Copy a to g_b so it can simply be modified in place
+		cudaMemcpy(g_b, a, sizeTotal * sizeof(float), cudaMemcpyHostToDevice);
+
+		for (unsigned int i = 0; i < size; i++)
+			elimination8_1<<<dimGrid, dimBlock>>>(g_b, size, i);
+		elimination8_2<<<dimGrid, dimBlock>>>(g_b, size);
+		break;
+	case 9:
+		dimBlock.x = size + 1;
+		dimBlock.y = size;
+
+		// Copy a to g_b so it can simply be modified in place
+		cudaMemcpy(g_b, a, sizeTotal * sizeof(float), cudaMemcpyHostToDevice);
+
+		elimination9<<<dimGrid, dimBlock>>>(g_b, size);
 		break;
 	}
 
@@ -350,15 +361,10 @@ __global__ void elimination7(float *a, float *b, int size, int pivot) {
 #undef element
 }
 
-__global__ void elimination8_1(float *a, float *b, int size, int pivot) {
-#define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
+__global__ void elimination8_1(float *a, int size, int pivot) {
+#define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 	int x = threadIdx.x;
 	int y = threadIdx.y;
-
-	int tid = y * (size + 1) + x;
-	b[tid] = a[tid];
-
-	__syncthreads();
 
 	float cp = element(pivot, y) / element(pivot, pivot);
 
@@ -368,9 +374,31 @@ __global__ void elimination8_1(float *a, float *b, int size, int pivot) {
 #undef element
 }
 
-__global__ void elimination8_2(float *a, float *b, int size) {
-#define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
-	int yy = threadIdx.x;
+__global__ void elimination8_2(float *a, int size) {
+#define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
+	int yy = threadIdx.y * (size + 1) + threadIdx.x;
+	element(size, yy) /= element(yy, yy);
+#undef element
+}
+
+__global__ void elimination9(float *a, int size) {
+#define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
+	int x = threadIdx.x;
+	int y = threadIdx.y;
+
+	float cp;
+
+	for (int pivot = 0; pivot < size; pivot++) {
+
+		cp = element(pivot, y) / element(pivot, pivot);
+
+		if (y != pivot)
+			element(x, y) -= cp * element(x, pivot);
+
+		__syncthreads();
+	}
+
+	int yy = threadIdx.y * (size + 1) + threadIdx.x;
 	element(size, yy) /= element(yy, yy);
 #undef element
 }

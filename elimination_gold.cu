@@ -26,7 +26,7 @@ float elimination_gold(float *a, float *b, int size) {
 
 #ifdef DEBUG
 		printf("Matrix before:\n");
-		elimination_gold_print_matrix(elements, size);
+		elimination_gold_print_matrix(b, size);
 #endif
 
 	for (yy = 0; yy < size; yy++) {
@@ -38,7 +38,7 @@ float elimination_gold(float *a, float *b, int size) {
 
 #ifdef DEBUG
 		printf("Matrix (Stage 1; Column %d):\n", yy);
-		elimination_gold_print_matrix(elements, size);
+		elimination_gold_print_matrix(b, size);
 #endif
 
 		// Make all other values in the pivot column be zero
@@ -52,7 +52,7 @@ float elimination_gold(float *a, float *b, int size) {
 
 #ifdef DEBUG
 		printf("Matrix (Stage 2; Column %d):\n", yy);
-		elimination_gold_print_matrix(elements, size);
+		elimination_gold_print_matrix(b, size);
 #endif
 
 	}
@@ -84,7 +84,7 @@ float elimination_gold2(float *a, float *b, int size) {
 
 #ifdef DEBUG
 		printf("Matrix before:\n");
-		elimination_gold_print_matrix(elements, size);
+		elimination_gold_print_matrix(b, size);
 #endif
 
 	for (yy = 0; yy < size; yy++) {
@@ -93,6 +93,7 @@ float elimination_gold2(float *a, float *b, int size) {
 		// Make the pivot be 1
 
 		// We know that pivot / pivot will equal 1, so just set it to 1
+		// This line can be commented out, and the final column will still be correct
 		element(yy, yy) = 1;
 
 		// Start from yy + 1 instead of 0. The + 1 is because we have calculated done the pivot
@@ -101,7 +102,7 @@ float elimination_gold2(float *a, float *b, int size) {
 
 #ifdef DEBUG
 		printf("Matrix (Stage 1; Column %d):\n", yy);
-		elimination_gold_print_matrix(elements, size);
+		elimination_gold_print_matrix(b, size);
 #endif
 
 		// Make all other values in the pivot column be zero
@@ -110,6 +111,7 @@ float elimination_gold2(float *a, float *b, int size) {
 				c = element(yy, rr);
 
 				// We know that this value will be zero
+				// This line can be commented out, and the final column will still be correct
 				element(yy, rr) = 0;
 
 				// Start from yy + 1 instead of 0. The + 1 is because we have already set one value to zero
@@ -120,7 +122,7 @@ float elimination_gold2(float *a, float *b, int size) {
 
 #ifdef DEBUG
 		printf("Matrix (Stage 2; Column %d):\n", yy);
-		elimination_gold_print_matrix(elements, size);
+		elimination_gold_print_matrix(b, size);
 #endif
 
 	}

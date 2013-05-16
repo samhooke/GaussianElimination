@@ -13,18 +13,25 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 	// Copy data to GPU
 	int sizeTotal = (size + 1) * size;
 	float *g_a, *g_b;
-	check("Allocating memory");
-	cudaMalloc((void**)&g_a, sizeTotal * sizeof(float));
-	cudaMalloc((void**)&g_b, sizeTotal * sizeof(float));
 
-	check("Copying memory from host to device");
 	if (kernel < 8) {
+		check("Allocating memory g_a");
+		cudaMalloc((void**)&g_a, sizeTotal * sizeof(float));
+		check("Allocating memory g_b");
+		cudaMalloc((void**)&g_b, sizeTotal * sizeof(float));
+
 		// Copy a to g_a which the device will use for reference
+		check("Copying memory from host to device");
 		cudaMemcpy(g_a, a, sizeTotal * sizeof(float), cudaMemcpyHostToDevice);
 	} else {
+		check("Allocating memory g_b");
+		cudaMalloc((void**)&g_b, sizeTotal * sizeof(float));
+
 		// Copy a to g_b which the device will modify in place
+		check("Copying memory from host to device");
 		cudaMemcpy(g_b, a, sizeTotal * sizeof(float), cudaMemcpyHostToDevice);
 	}
+	check("Copied memory from host to device");
 
 	dim3 dimBlock(1,1,1);
 	dim3 dimGrid(1,1,1);
@@ -118,22 +125,37 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 		dimGrid.x = (size + 1 - 1) / BLOCK_SIZE + 1;
 		dimGrid.y = (size - 1) / BLOCK_SIZE + 1;
 
+		char buffer[50];
+
 		for (int pivot = 0; pivot < size; pivot++) {
 			elimination11_1<<<dimGrid, dimBlock>>>(g_b, size, pivot);
-			cudaThreadSynchronize();
+			//cudaDeviceSynchronize();
+
+			sprintf(buffer, "Launched elimination11_1 kernel (pivot = %d)", pivot);
+			check(buffer);
 		}
 		elimination11_2<<<dimGrid, dimBlock>>>(g_b, size);
+		check("Launched elimination11_2 kernel");
 		break;
 	}
+
+	check("Finished kernel execution");
+	cudaDeviceSynchronize();
+	check("Synchronized with device");
 
 	// Copy data from GPU
 	check("Copying data from device to host");
 	cudaMemcpy(b, g_b, sizeTotal * sizeof(float), cudaMemcpyDeviceToHost);
+	check("Copied data from device to host");
 
 	// Tidy up
 	check("Freeing memory");
-	cudaFree(g_a);
-	cudaFree(g_b);
+	if (kernel < 8) {
+		cudaFree(g_a);
+		cudaFree(g_b);
+	} else {
+		cudaFree(g_b);
+	}
 
 	// Stop timers
 	cudaEventRecord(timer2, 0);

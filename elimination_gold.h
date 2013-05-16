@@ -3,6 +3,7 @@
 
 float elimination_gold(float *a, float *b, int size);
 float elimination_gold2(float *a, float *b, int size);
+float elimination_gold3(float *a, float *b, int size);
 void elimination_gold_print_matrix(float *elements, int size);
 
 #endif //_ELIMINATION_GOLD_H_

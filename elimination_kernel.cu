@@ -22,6 +22,9 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 	dim3 dimBlock(1,1,1);
 	dim3 dimGrid(1,1,1);
 
+	// Memory used for debugging
+	float *c = (float*) malloc(sizeTotal * sizeof(float));
+
 	// Execute kernel on GPU
 	check("Executing kernel on GPU");
 	switch (kernel) {
@@ -55,6 +58,36 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 		//dimGrid.x = (size + 1 - 1) / BLOCK_SIZE + 1;
 		//dimGrid.y = (size - 1) / BLOCK_SIZE + 1;
 		elimination5<<<dimGrid, dimBlock>>>(g_a, g_b, size);
+		break;
+	case 6:
+		dimBlock.x = size + 1;
+		dimBlock.y = size;
+		elimination6<<<dimGrid, dimBlock>>>(g_a, g_b, size, 0);
+		for (unsigned int i = 1; i < size; i++) {
+			cudaMemcpy(c, g_b, sizeTotal * sizeof(float), cudaMemcpyDeviceToHost);
+			printf("Debug %d:\n", i);
+			elimination_gold_print_matrix(c, size);
+			elimination6<<<dimGrid, dimBlock>>>(g_b, g_b, size, i);
+		}
+		break;
+	case 7:
+		printf("Performing 7\n");
+		// Each block represents one row
+		// Blocks are tiled vertically
+		dimBlock.x = size + 1; // Max of 512 threads per block
+		dimGrid.x = size;
+
+		elimination7<<<dimGrid, dimBlock>>>(g_a, g_b, size, 0);
+		for (unsigned int i = 1; i < size; i++) {
+			cudaMemcpy(c, g_b, sizeTotal * sizeof(float), cudaMemcpyDeviceToHost);
+			printf("Debug %d:\n", i);
+			elimination_gold_print_matrix(c, size);
+			elimination7<<<dimGrid, dimBlock>>>(g_b, g_b, size, i);
+		}
+		break;
+	case 8:
+		dimBlock.x = size;
+		elimination1<<<dimGrid, dimBlock>>>(g_a, g_b, size);
 		break;
 	}
 
@@ -108,7 +141,7 @@ __global__ void elimination0(float *a, float *b, int size) {
 }
 
 // Inner xx loops are now parallel
-// Uses one block, so limited to 512 threads, so the matrix can be at most of size 22
+// Uses one block, so limited to 512 threads
 // Still uses only global memory
 __global__ void elimination1(float *a, float *b, int size) {
 #define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
@@ -230,6 +263,7 @@ __global__ void elimination4(float *a, float *b, int size) {
 #undef element
 }
 
+// Tries to use tiled implementation; does not work
 __global__ void elimination5(float *a, float *b, int size) {
 #define element(_x, _y) (*(sdata + ((_y) * (size + 1) + (_x))))
 	unsigned int xx, yy, rr;
@@ -258,5 +292,58 @@ __global__ void elimination5(float *a, float *b, int size) {
 	}
 
 	b[blockDim.y * BLOCK_SIZE + blockDim.x + tid] = sdata[tid];
+#undef element
+}
+
+// Kernel is invoked once per pivot
+// One block, with thread dimensions equal to matrix dimensions
+__global__ void elimination6(float *a, float *b, int size, int pivot) {
+#define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
+	int x = threadIdx.x;
+	int y = threadIdx.y;
+
+	int tid = y * (size + 1) + x;
+	b[tid] = a[tid];
+
+	if (y == pivot)
+		element(x, y) /= element(pivot, pivot);
+
+	__syncthreads();
+
+	if (y != pivot)
+		element(x, y) -= element(pivot, y) * element(x, pivot);
+
+#undef element
+}
+
+// Kernel is invoked once per pivot
+// Multiple blocks, with dimensions fixed
+__global__ void elimination7(float *a, float *b, int size, int pivot) {
+#define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
+	element(threadIdx.x, blockDim.x) = 7;
+	/*
+	int x = threadIdx.x;
+	int y = blockDim.x;
+
+	if (x < size + 1 && y < size) {
+		int tid = y * (size + 1) + x;
+
+		b[tid] = a[tid];
+
+		if (y == pivot)
+			element(x, y) /= element(pivot, pivot);
+
+		__syncthreads();
+
+		if (y != pivot)
+			element(x, y) -= element(pivot, y) * element(x, pivot);
+	}
+	*/
+#undef element
+}
+
+__global__ void elimination8(float *a, float *b, int size) {
+#define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
+
 #undef element
 }

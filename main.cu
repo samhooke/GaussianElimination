@@ -6,7 +6,7 @@
 
 int main() {
 	// Select GPU kernel
-	int kernel = 5;
+	int kernel = 8;
 
 	// Timers
 	float elapsed_cpu = 0;
@@ -26,7 +26,7 @@ int main() {
 	check("Performing Gaussian Elimination on CPU");
 	elapsed_cpu = elimination_gold(m_in.elements, m_out_cpu.elements, size);
 	check("Performing Gaussian Elimination on GPU");
-	elapsed_gpu = elimination_gold2(m_in.elements, m_out_gpu.elements, size);
+	elapsed_gpu = elimination_gold3(m_in.elements, m_out_gpu.elements, size);
 	//elapsed_gpu = elimination_kernel(m_in.elements, m_out_gpu.elements, size, kernel);
 
 	printf("CPU (%fms)\n", elapsed_cpu);
@@ -38,7 +38,7 @@ int main() {
 	bool match_b = matrix_compare_b(m_out_cpu.elements, m_out_gpu.elements, size, 0.001f);
 
 	// Show statistics
-	printf("Results %s\n", match_b ? "match!" : "do not match.");
+	printf("Column 'b' %s\n", match_b ? "match!" : "do not match.");
 	float p = elapsed_cpu / elapsed_gpu;
 	printf("GPU was %2.2f%% %s\n", ((p < 1 ? 1 / p : p) - 1) * 100, p < 1 ? "slower" : "faster");
 

@@ -106,7 +106,8 @@ bool matrix_compare_b(float *m, float *n, int size, float tolerance) {
 	int sizeTotal = (size + 1) * size;
 	bool match = true;
 
-	for (unsigned int i = 0; i < sizeTotal; i++) {
+	// Compare only last column
+	for (unsigned int i = size + 1 - 1; i < sizeTotal; i+= size + 1) {
 		if (m[i] > n[i] + tolerance || m[i] < n[i] - tolerance) {
 			match = false;
 			break;

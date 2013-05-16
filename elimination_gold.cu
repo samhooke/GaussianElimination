@@ -10,15 +10,15 @@
 //   Modifies 'a' into the identity matrix
 //   Modifies 'b' into the solution for {x}
 float elimination_gold(float *a, float *b, int size) {
-#define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
-	unsigned int xx, yy, rr;
-	float c;
-
 	// Start timers
 	cudaEvent_t timer1, timer2;
 	cudaEventCreate(&timer1);
 	cudaEventCreate(&timer2);
 	cudaEventRecord(timer1, 0);
+
+#define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
+	unsigned int xx, yy, rr;
+	float c;
 
 	// The matrix will be modified in place, so first make a copy of matrix a
 	for (unsigned int i = 0; i < (size + 1) * size; i++)
@@ -68,15 +68,15 @@ float elimination_gold(float *a, float *b, int size) {
 }
 
 float elimination_gold2(float *a, float *b, int size) {
-#define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
-	unsigned int xx, yy, rr;
-	float c;
-
 	// Start timers
 	cudaEvent_t timer1, timer2;
 	cudaEventCreate(&timer1);
 	cudaEventCreate(&timer2);
 	cudaEventRecord(timer1, 0);
+
+#define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
+	unsigned int xx, yy, rr;
+	float c;
 
 	// The matrix will be modified in place, so first make a copy of matrix a
 	for (unsigned int i = 0; i < (size + 1) * size; i++)
@@ -138,19 +138,23 @@ float elimination_gold2(float *a, float *b, int size) {
 }
 
 float elimination_gold3(float *a, float *b, int size) {
-#define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
-	unsigned int xx, yy, rr;
-	float c;
-
 	// Start timers
 	cudaEvent_t timer1, timer2;
 	cudaEventCreate(&timer1);
 	cudaEventCreate(&timer2);
 	cudaEventRecord(timer1, 0);
 
-	// The matrix will be modified in place, so first make a copy of matrix a
+#define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
+	unsigned int xx, yy, rr;
+	float c;
+
 	for (unsigned int i = 0; i < (size + 1) * size; i++)
 		b[i] = a[i];
+
+#ifdef DEBUG
+		printf("Matrix before:\n");
+		elimination_gold_print_matrix(b, size);
+#endif
 
 	for (yy = 0; yy < size; yy++) {
 		float pivot = element(yy, yy);
@@ -159,12 +163,20 @@ float elimination_gold3(float *a, float *b, int size) {
 			if (rr != yy) {
 				c = element(yy, rr);
 
+				// Combine the subtracting and dividing into one operation
 				for (xx = yy + 1; xx < size + 1; xx++)
 					element(xx, rr) -= c * element(xx, yy) / pivot;
 			}
+
+#ifdef DEBUG
+		printf("Matrix (Column %d):\n", yy);
+		elimination_gold_print_matrix(b, size);
+#endif
+
 		}
 	}
 
+	// However, one final division is still required for the last column
 	for (yy = 0; yy < size ; yy++) {
 		element(size, yy) /= element(yy, yy);
 	}

@@ -113,8 +113,10 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 		elimination10<<<dimGrid, dimBlock>>>(g_b, size);
 		break;
 	case 11:
-		dimBlock.x = size + 1;
-		dimBlock.y = size;
+		dimBlock.x = 5;//size + 1;
+		dimBlock.y = 5;//size;
+		dimGrid.x = 2;
+		dimGrid.y = 2;
 
 		elimination11_1<<<dimGrid, dimBlock>>>(g_b, size);
 		elimination11_2<<<dimGrid, dimBlock>>>(g_b, size);
@@ -454,6 +456,9 @@ __global__ void elimination11_1(float *a, int size) {
 	int x = threadIdx.x + blockIdx.x * blockDim.x;
 	int y = threadIdx.y + blockIdx.y * blockDim.y;
 
+	if (x > size || y > size)
+		return;
+
 	float cp;
 
 	for (int pivot = 0; pivot < size; pivot++) {
@@ -474,6 +479,10 @@ __global__ void elimination11_2(float *a, int size) {
 
 	int x = threadIdx.x + blockIdx.x * blockDim.x;
 	int y = threadIdx.y + blockIdx.y * blockDim.y;
+
+	if (x > size || y > size)
+		return;
+
 	int tid = y * (size + 1) + x;
 
 	element(size, tid) /= element(tid, tid);

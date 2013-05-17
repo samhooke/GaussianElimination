@@ -821,7 +821,7 @@ __global__ void elimination16_1(float *a, int size, int pivot) {
 	if (y >= size || y != pivot)
 		return;
 
-	int x = threadIdx.x + blockIdx.x * blockDim.x;
+	int x = threadIdx.x;
 
 	if (x < pivot)
 		return;
@@ -838,7 +838,7 @@ __global__ void elimination16_2(float *a, int size, int pivot) {
 	if (y >= size || y == pivot)
 		return;
 
-	int x = threadIdx.x + blockIdx.x * blockDim.x;
+	int x = threadIdx.x;
 
 	if (x < pivot)
 		return;

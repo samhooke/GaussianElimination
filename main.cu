@@ -28,7 +28,6 @@ int main() {
 	check("Performing Gaussian Elimination on CPU");
 	elapsed_cpu = elimination_gold(m_in, m_out_cpu, size);
 	check("Performing Gaussian Elimination on GPU");
-	//elapsed_gpu = elimination_gold2(m_in.elements, m_out_gpu.elements, size);
 	elapsed_gpu = elimination_kernel(m_in, m_out_gpu, size, kernel);
 	check("Finished Gaussian Elimination on GPU");
 

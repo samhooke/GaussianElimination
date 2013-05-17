@@ -1,6 +1,6 @@
 #include "elimination_kernel.h"
 
-#define BLOCK_SIZE 21
+#define BLOCK_SIZE 16
 
 float elimination_kernel(float *a, float *b, int size, int kernel) {
 	// Start timers
@@ -143,6 +143,23 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 
 		elimination11_2<<<dimGrid, dimBlock>>>(g_b, size);
 		check("Launched elimination11_2 kernel");
+		break;
+	case 12:
+		//dimBlock.x = BLOCK_SIZE;
+		//dimBlock.y = BLOCK_SIZE;
+		//dimGrid.x = (size + 1 - 1) / BLOCK_SIZE + 1;
+		//dimGrid.y = (size - 1) / BLOCK_SIZE + 1;
+
+		dimBlock.x = 512;
+		dimBlock.y = 1;
+		dimGrid.x = (size + 1 - 1) / 512 + 1;
+		dimGrid.y = (size - 1) / 1 + 1;
+
+		for (int pivot = 0; pivot < size; pivot++) {
+			elimination12_1<<<dimGrid, dimBlock>>>(g_b, size, pivot);
+			elimination12_2<<<dimGrid, dimBlock>>>(g_b, size, pivot);
+		}
+
 		break;
 	}
 
@@ -508,6 +525,32 @@ __global__ void elimination11_2(float *a, int size) {
 		return;
 
 	element(size, tid) /= element(tid, tid);
+
+#undef element
+}
+
+__global__ void elimination12_1(float *a, int size, int pivot) {
+#define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
+
+	int x = threadIdx.x + blockIdx.x * blockDim.x;
+	int y = threadIdx.y + blockIdx.y * blockDim.y;
+
+	if (x <= size && y < size)
+		if (y == pivot)
+			element(x, y) /= element(pivot, pivot);
+
+#undef element
+}
+
+__global__ void elimination12_2(float *a, int size, int pivot) {
+#define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
+
+	int x = threadIdx.x + blockIdx.x * blockDim.x;
+	int y = threadIdx.y + blockIdx.y * blockDim.y;
+
+	if (x <= size && y < size)
+		if (y != pivot)
+			element(x, y) -= element(pivot, y) * element(x, pivot);
 
 #undef element
 }

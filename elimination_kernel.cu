@@ -204,6 +204,20 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 		}
 
 		break;
+	case 16:
+
+		// Each block consists of a row of 512
+		dimBlock.x = 512;
+		dimBlock.y = 1;
+		dimGrid.x = (size + 1 - 1) / dimBlock.x + 1;
+		dimGrid.y = (size - 1) / dimBlock.y + 1;
+
+		for (int pivot = 0; pivot < size; pivot++) {
+			elimination16_1<<<dimGrid, dimBlock>>>(g_b, size, pivot);
+			elimination16_2<<<dimGrid, dimBlock>>>(g_b, size, pivot);
+		}
+
+		break;
 	}
 
 	check("Finished kernel execution");
@@ -731,6 +745,10 @@ __global__ void elimination15_1(float *a, int size, int pivot) {
 		return;
 
 	int x = (threadIdx.x + blockIdx.x * blockDim.x) * ELEMENTS_PER_THREAD;
+
+	if (x < pivot)
+		return;
+
 	int w = size + 1;
 	float p = *(a + pivot * w + pivot);
 
@@ -761,6 +779,10 @@ __global__ void elimination15_2(float *a, int size, int pivot) {
 		return;
 
 	int x = (threadIdx.x + blockIdx.x * blockDim.x) * ELEMENTS_PER_THREAD;
+
+	if (x < pivot)
+		return;
+
 	int w = size + 1;
 	int pivotw = pivot * w;
 	float *ayw = a + y * w;
@@ -783,4 +805,49 @@ __global__ void elimination15_2(float *a, int size, int pivot) {
 				*(ayw + xx) -= c * *(a + pivotw + xx);
 		}
 	}
+}
+
+// ----------------------------- elimination 16 ----------------------------- //
+// Based upon elimination 15. Removed ELEMENTS_PER_THREAD, which unfortunately
+// decreases the max size back to 511, but opens up the possibility for several
+// more optimizations. For example, we can now use the check (x < pivot) to drop
+// some threads, because any x value left of the pivot will not affect the final
+// outcome of the algorithm.
+// Max size is 511
+__global__ void elimination16_1(float *a, int size, int pivot) {
+
+	int y = blockIdx.y;
+
+	if (y >= size || y != pivot)
+		return;
+
+	int x = threadIdx.x + blockIdx.x * blockDim.x;
+
+	if (x < pivot)
+		return;
+
+	int w = size + 1;
+	*(a + y * w + x) /= *(a + pivot * w + pivot);
+
+}
+
+__global__ void elimination16_2(float *a, int size, int pivot) {
+
+	int y = blockIdx.y;
+
+	if (y >= size || y == pivot)
+		return;
+
+	int x = threadIdx.x + blockIdx.x * blockDim.x;
+
+	if (x < pivot)
+		return;
+
+	int w = size + 1;
+	int pivotw = pivot * w;
+	float *ayw = a + y * w;
+
+	float c = *(ayw + pivot);
+	*(ayw + x) -= c * *(a + pivotw + x);
+
 }

@@ -8,7 +8,7 @@ void enter();
 
 int main() {
 	// Select GPU kernel
-	int kernel = 15;
+	int kernel = 16;
 
 	// Timers
 	float elapsed_cpu = 0;

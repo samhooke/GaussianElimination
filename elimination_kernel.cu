@@ -504,19 +504,10 @@ __global__ void elimination11_2(float *a, int size) {
 
 	int tid = threadIdx.x + blockIdx.x * blockDim.x;
 
-	element(size, tid) /= element(tid, tid);
-
-	/*
-	int x = threadIdx.x + blockIdx.x * blockDim.x;
-	int y = threadIdx.y + blockIdx.y * blockDim.y;
-
-	if (x > size || y > size - 1)
+	if (tid > size)
 		return;
 
-	int tid = y * (size + 1) + x;
-
 	element(size, tid) /= element(tid, tid);
-	*/
 
 #undef element
 }

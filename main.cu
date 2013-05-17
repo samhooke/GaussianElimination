@@ -32,17 +32,17 @@ int main() {
 	elapsed_gpu = elimination_kernel(m_in.elements, m_out_gpu.elements, size, kernel);
 	check("Finished Gaussian Elimination on GPU");
 
+	printf("\nComputation finished. Statistics follow:\n");
 	printf("CPU (%fms)\n", elapsed_cpu);
-
 	printf("GPU (%fms)\n", elapsed_gpu);
 
-
 	// Compare the results with a threshold of tolerance
-	float match_b = matrix_compare_b(m_out_cpu.elements, m_out_gpu.elements, size, 0.01f);
+	float tolerance;
+	for (tolerance = 1.0f; tolerance > 0.00001f; tolerance /= 10) {
+		float match_b = matrix_compare_b(m_out_cpu.elements, m_out_gpu.elements, size, tolerance);
+		printf("%6.2f%% match at %.4f tolerance\n", match_b * 100, tolerance);
+	}
 
-	// Show statistics
-	//printf("Column 'b' %s\n", (match_b ? "match!" : "do not match.");
-	printf("Column 'b' has %f%% match\n", match_b * 100);
 	float p = elapsed_cpu / elapsed_gpu;
 	printf("GPU was %2.2f%% %s\n", ((p < 1 ? 1 / p : p) - 1) * 100, p < 1 ? "slower" : "faster");
 

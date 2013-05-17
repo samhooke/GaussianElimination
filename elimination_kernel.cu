@@ -733,13 +733,23 @@ __global__ void elimination15_1(float *a, int size, int pivot) {
 	int x = (threadIdx.x + blockIdx.x * blockDim.x) * ELEMENTS_PER_THREAD;
 	int w = size + 1;
 	float p = *(a + pivot * w + pivot);
-	int xx;
 
-	#pragma unroll
-	for (int i = 0; i < ELEMENTS_PER_THREAD; i++) {
-		xx = i + x;
-		if (xx <= size)
-			*(a + y * w + xx) /= p;
+	if (x + ELEMENTS_PER_THREAD - 1 <= size) {
+		// This is not an edge case. No bounds checking required.
+		float *aywx = a + y * w + x;
+		#pragma unroll
+		for (int i = 0; i < ELEMENTS_PER_THREAD; i++)
+			*(aywx + i) /= p;
+	} else {
+		// This is an edge case. Bounds checking is required.
+		float *ayw = a + y * w;
+		int xx;
+		#pragma unroll
+		for (int i = 0; i < ELEMENTS_PER_THREAD; i++) {
+			xx = i + x;
+			if (xx <= size)
+				*(ayw + xx) /= p;
+		}
 	}
 }
 
@@ -757,10 +767,20 @@ __global__ void elimination15_2(float *a, int size, int pivot) {
 	float c = *(ayw + pivot);
 	int xx;
 
-	#pragma unroll
-	for (int i = 0; i < ELEMENTS_PER_THREAD; i++) {
-		xx = i + x;
-		if (xx <= size)
+	if (x + ELEMENTS_PER_THREAD - 1 <= size) {
+		// This is not an edge case. No bounds checking is required.
+		#pragma unroll
+		for (int i = 0; i < ELEMENTS_PER_THREAD; i++) {
+			xx = i + x;
 			*(ayw + xx) -= c * *(a + pivotw + xx);
+		}
+	} else {
+		// This is an edge case. Bounds checking is required.
+		#pragma unroll
+		for (int i = 0; i < ELEMENTS_PER_THREAD; i++) {
+			xx = i + x;
+			if (xx <= size)
+				*(ayw + xx) -= c * *(a + pivotw + xx);
+		}
 	}
 }

@@ -15,21 +15,21 @@ int main() {
 	float elapsed_gpu = 0;
 
 	// Create two identical input matrices, and two blank output matrices
-	int size = 64;
+	int size = 70;
 	int type = -1;
 	check("Generating input matrix m_in");
-	Matrix m_in = matrix_generate(size, type);
+	float* m_in = matrix_generate(size, type);
 	check("Generating blank output matrix m_out_cpu");
-	Matrix m_out_cpu = matrix_generate(size, 0);
+	float* m_out_cpu = matrix_generate(size, 0);
 	check("Generating blank output matrix m_out_gpu");
-	Matrix m_out_gpu = matrix_generate(size, 0);
+	float* m_out_gpu = matrix_generate(size, 0);
 
 	// Perform Gaussian Elimination
 	check("Performing Gaussian Elimination on CPU");
-	elapsed_cpu = elimination_gold(m_in.elements, m_out_cpu.elements, size);
+	elapsed_cpu = elimination_gold(m_in, m_out_cpu, size);
 	check("Performing Gaussian Elimination on GPU");
 	//elapsed_gpu = elimination_gold2(m_in.elements, m_out_gpu.elements, size);
-	elapsed_gpu = elimination_kernel(m_in.elements, m_out_gpu.elements, size, kernel);
+	elapsed_gpu = elimination_kernel(m_in, m_out_gpu, size, kernel);
 	check("Finished Gaussian Elimination on GPU");
 
 	printf("\nComputation finished. Statistics follow:\n");
@@ -39,7 +39,7 @@ int main() {
 	// Compare the results with a threshold of tolerance
 	float tolerance;
 	for (tolerance = 1.0f; tolerance > 0.00001f; tolerance /= 10) {
-		float match_b = matrix_compare_b(m_out_cpu.elements, m_out_gpu.elements, size, tolerance);
+		float match_b = matrix_compare_b(m_out_cpu, m_out_gpu, size, tolerance);
 		printf("%6.2f%% match at %.4f tolerance\n", match_b * 100, tolerance);
 	}
 
@@ -52,7 +52,7 @@ int main() {
 	printf("             CPU | GPU             \n");
 	printf("-----------------+-----------------\n");
 	for (int i = 0; i < size; i++) {
-		printf("%16.4f | %-16.4f\n", m_out_cpu.elements[i * (size + 1) + size], m_out_gpu.elements[i * (size + 1) + size]);
+		printf("%16.4f | %-16.4f\n", m_out_cpu[i * (size + 1) + size], m_out_gpu[i * (size + 1) + size]);
 		//printf("%16.4f | %-16.4f\n", m_out_cpu.elements[i * (size + 1) + size], m_out_gpu.elements[i * (size + 1) + size] / m_out_gpu.elements[i * (size + 1) + i]);
 	}
 
@@ -60,9 +60,9 @@ int main() {
 	enter();
 
 	printf("CPU results:\n");
-	elimination_gold_print_matrix(m_out_cpu.elements, size);
+	elimination_gold_print_matrix(m_out_cpu, size);
 	printf("GPU results:\n");
-	elimination_gold_print_matrix(m_out_gpu.elements, size);
+	elimination_gold_print_matrix(m_out_gpu, size);
 
 	return 0;
 }

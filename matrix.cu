@@ -1,6 +1,6 @@
 #include "matrix.h"
 
-#define MAX_SIZE 2048
+#define MAX_SIZE 4096
 #define MAX_SIZE_TOTAL (MAX_SIZE + 1) * MAX_SIZE
 #define MAX_FILE_READ_SIZE MAX_SIZE * 10 // Some arbitrary number larger than MAX_SIZE
 
@@ -8,7 +8,7 @@
 // If type == -1, the matrix is filled with random values
 // If type ==  0, the matrix is filled with zeros
 // If type >=  1, the matrix is loaded from file
-Matrix matrix_generate(int size, int type) {
+float* matrix_generate(int size, int type) {
 
 	int sizeTotal = (size + 1) * size;
 
@@ -17,7 +17,6 @@ Matrix matrix_generate(int size, int type) {
 		exit(0);
 	}
 
-	//float a[MAX_SIZE_TOTAL];
 	float *a = (float*) malloc(MAX_SIZE_TOTAL * sizeof(float));
 
 	if (type > 0) {
@@ -103,14 +102,12 @@ Matrix matrix_generate(int size, int type) {
 	}
 
 	// Copy generated matrix into a Matrix struct within allocated space
-	Matrix m;
-	m.elements = (float*) malloc(sizeTotal * sizeof(float));
-	m.size = size;
+	float *elements = (float*) malloc(sizeTotal * sizeof(float));
 
 	for (unsigned int i = 0; i < sizeTotal; i++)
-		*(m.elements + i) = (float) a[i];
+		*(elements + i) = (float) a[i];
 
-	return m;
+	return elements;
 }
 
 float matrix_compare_b(float *m, float *n, int size, float tolerance) {

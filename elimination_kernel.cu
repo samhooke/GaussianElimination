@@ -1,6 +1,6 @@
 #include "elimination_kernel.h"
 
-// Used by kernel 5
+// Used by kernel 5 & 11
 #define BLOCK_SIZE 16
 
 // Used by kernels 13, 14 & 15
@@ -235,7 +235,8 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 	return elapsed;
 }
 
-// Very, very naive implementation, identical to CPU code
+// ----------------------------- elimination 0 ------------------------------ //
+// This is a terrible solution which simply executes the CPU code upon the GPU.
 __global__ void elimination0(float *a, float *b, int size) {
 #define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
 	unsigned int xx, yy, rr;
@@ -264,9 +265,10 @@ __global__ void elimination0(float *a, float *b, int size) {
 #undef element
 }
 
-// Inner xx loops are now parallel
-// Uses one block, so limited to 512 threads
-// Still uses only global memory
+// ----------------------------- elimination 1 ------------------------------ //
+// Based upon elimination 0. Inner xx loops have been made parallel. Uses only
+// one block, and uses global memory.
+// Max size is 511
 __global__ void elimination1(float *a, float *b, int size) {
 #define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
 	unsigned int xx, yy, rr;
@@ -292,7 +294,14 @@ __global__ void elimination1(float *a, float *b, int size) {
 #undef element
 }
 
-// Both xx and rr loops are now in parallel
+// ----------------------------- elimination 2 ------------------------------ //
+// Based upon elimination 1. Both xx and rr loops are now in parallel. Because
+// the grid is now 2D, the max size has dropped from 511 to 22. This is because
+// the max size is limited by the number of threads per block, which is 512.
+// The number of threads required per size is ((size + 1) * size). 22 is the
+// largest number for which this result is less than 512:
+//   ((22 + 1) * 22) < 512, ((23 + 1) * 23) > 512; 23 will not fit, 22 will.
+// Max size is 22
 __global__ void elimination2(float *a, float *b, int size) {
 #define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
 	unsigned int xx, yy, rr;
@@ -321,7 +330,9 @@ __global__ void elimination2(float *a, float *b, int size) {
 #undef element
 }
 
-// Data is copied in parallel
+// ----------------------------- elimination 3 ------------------------------ //
+// Based upon elimination 3. Data is copied in parallel.
+// Max size is 22
 __global__ void elimination3(float *a, float *b, int size) {
 #define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
 	unsigned int xx, yy, rr;
@@ -351,8 +362,9 @@ __global__ void elimination3(float *a, float *b, int size) {
 #undef element
 }
 
-// Shared memory is used
-// However, still limited to matrices of size 22
+// ----------------------------- elimination 4 ------------------------------ //
+// Based upon elimination 3. Shared memory is used.
+// Max size is 22
 __global__ void elimination4(float *a, float *b, int size) {
 #define element(_x, _y) (*(sdata + ((_y) * (size + 1) + (_x))))
 	unsigned int xx, yy, rr;
@@ -387,7 +399,9 @@ __global__ void elimination4(float *a, float *b, int size) {
 #undef element
 }
 
-// Tries to use tiled implementation; does not work
+// ----------------------------- elimination 5 ------------------------------ //
+// A new approach. Tries to use tiled implementation. Does not work.
+// Max size is ???
 __global__ void elimination5(float *a, float *b, int size) {
 #define element(_x, _y) (*(sdata + ((_y) * (size + 1) + (_x))))
 	unsigned int xx, yy, rr;
@@ -419,8 +433,10 @@ __global__ void elimination5(float *a, float *b, int size) {
 #undef element
 }
 
-// Kernel is invoked once per pivot
-// One block, with thread dimensions equal to matrix dimensions
+// ----------------------------- elimination 6 ------------------------------ //
+// Another new approach. Kernel is invoked once per pivot. There is just one
+// block, with thread dimensions equal to matrix dimensions.
+// Max size is 22
 __global__ void elimination6(float *a, float *b, int size, int pivot) {
 #define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
 	int x = threadIdx.x;
@@ -440,12 +456,13 @@ __global__ void elimination6(float *a, float *b, int size, int pivot) {
 #undef element
 }
 
-// Kernel is invoked once per pivot
-// Multiple blocks, with dimensions fixed
+// ----------------------------- elimination 7 ------------------------------ //
+// Based upon elimination 6. Uses multiple blocks, with fixed dimension sizes.
+// Does not work.
+// Max size is ???
 __global__ void elimination7(float *a, float *b, int size, int pivot) {
 #define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
-	element(threadIdx.x, blockDim.x) = 7;
-	/*
+
 	int x = threadIdx.x;
 	int y = blockDim.x;
 
@@ -462,10 +479,16 @@ __global__ void elimination7(float *a, float *b, int size, int pivot) {
 		if (y != pivot)
 			element(x, y) -= element(pivot, y) * element(x, pivot);
 	}
-	*/
+
 #undef element
 }
 
+// ----------------------------- elimination 8 ------------------------------ //
+// Yet another new approach. Splits the problem into two kernels, and changes
+// the logic of the algorithm slightly. The division and subtraction has been
+// combined into one operation in part 8_1. However, the result must be divided
+// one last time in part 8_2.
+// Max size is 22
 __global__ void elimination8_1(float *a, int size, int pivot) {
 #define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 	int x = threadIdx.x;
@@ -486,8 +509,9 @@ __global__ void elimination8_2(float *a, int size) {
 #undef element
 }
 
-// A combination of both 8_1 and 8_2
-// This opens up the possibility of using shared memory
+// ----------------------------- elimination 9 ------------------------------ //
+// Based upon elimination 8. Both parts 8_1 and 8_2 have been combined together.
+// Max size is 22
 __global__ void elimination9(float *a, int size) {
 #define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 	int x = threadIdx.x;
@@ -510,8 +534,10 @@ __global__ void elimination9(float *a, int size) {
 #undef element
 }
 
-// Uses shared memory, but uses only one block
-// Limited by amount of shared memory per block
+// ----------------------------- elimination 10 ----------------------------- //
+// Based upon elimination 9. Uses shared memory. Limited by amount of shared
+// memory per block.
+// Max size is 22
 __global__ void elimination10(float *a, int size) {
 #define element(_x, _y) (*(sdata + ((_y) * (size + 1) + (_x))))
 
@@ -542,6 +568,10 @@ __global__ void elimination10(float *a, int size) {
 #undef element
 }
 
+// ----------------------------- elimination 11 ----------------------------- //
+// Loosely based upon elimination 8. Applies the same logic but uses a tiled
+// implementation.
+// Max size is ???
 __global__ void elimination11_1(float *a, int size, int pivot) {
 #define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 
@@ -572,7 +602,10 @@ __global__ void elimination11_2(float *a, int size) {
 #undef element
 }
 
-// Divides the pivot row
+// ----------------------------- elimination 12 ----------------------------- //
+// Based upon elimination 11. Each block contains 512x1 threads that operate on
+// a row each.
+// Max size is 511
 __global__ void elimination12_1(float *a, int size, int pivot) {
 #define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 
@@ -586,7 +619,6 @@ __global__ void elimination12_1(float *a, int size, int pivot) {
 #undef element
 }
 
-// Subtracts the non-pivot row
 __global__ void elimination12_2(float *a, int size, int pivot) {
 #define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 
@@ -600,7 +632,11 @@ __global__ void elimination12_2(float *a, int size, int pivot) {
 #undef element
 }
 
-// Divides the pivot row
+// ----------------------------- elimination 13 ----------------------------- //
+// Based upon elimination 12. Conditions and calculations have been rearranged
+// to ensure threads don't perform unnecessary work. Each thread calculates
+// result for multiple elements.
+// Max size is ((512 * ELEMENTS_PER_THREAD) - 1)
 __global__ void elimination13_1(float *a, int size, int pivot) {
 #define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 
@@ -618,7 +654,6 @@ __global__ void elimination13_1(float *a, int size, int pivot) {
 #undef element
 }
 
-// Subtracts the non-pivot row
 __global__ void elimination13_2(float *a, int size, int pivot) {
 #define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 
@@ -636,7 +671,10 @@ __global__ void elimination13_2(float *a, int size, int pivot) {
 #undef element
 }
 
-// Divides the pivot row
+// ----------------------------- elimination 14 ----------------------------- //
+// Based upon elimination 13. Loops have been completely unrolled, and have
+// been made slightly more efficient through caching 'xx'.
+// Max size is ((512 * ELEMENTS_PER_THREAD) - 1)
 __global__ void elimination14_1(float *a, int size, int pivot) {
 #define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 
@@ -659,7 +697,6 @@ __global__ void elimination14_1(float *a, int size, int pivot) {
 #undef element
 }
 
-// Subtracts the non-pivot row
 __global__ void elimination14_2(float *a, int size, int pivot) {
 #define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 
@@ -682,7 +719,10 @@ __global__ void elimination14_2(float *a, int size, int pivot) {
 #undef element
 }
 
-// Divides the pivot row
+// ----------------------------- elimination 15 ----------------------------- //
+// Based upon elimination 14. Access to matrix elements has been made more
+// efficient through combining redundant operations.
+// Max size is ((512 * ELEMENTS_PER_THREAD) - 1)
 __global__ void elimination15_1(float *a, int size, int pivot) {
 
 	int y = blockIdx.y;
@@ -703,7 +743,6 @@ __global__ void elimination15_1(float *a, int size, int pivot) {
 	}
 }
 
-// Subtracts the non-pivot row
 __global__ void elimination15_2(float *a, int size, int pivot) {
 
 	int y = blockIdx.y;

@@ -8,14 +8,14 @@ void enter();
 
 int main() {
 	// Select GPU kernel
-	int kernel = 12;
+	int kernel = 13;
 
 	// Timers
 	float elapsed_cpu = 0;
 	float elapsed_gpu = 0;
 
 	// Create two identical input matrices, and two blank output matrices
-	int size = 400;
+	int size = 2000;
 	int type = -1;
 	check("Generating input matrix m_in");
 	float* m_in = matrix_generate(size, type);
@@ -40,7 +40,7 @@ int main() {
 	float tolerance;
 	for (tolerance = 100.0f; tolerance > 0.00001f; tolerance /= 10) {
 		float match_b = matrix_compare_b(m_out_cpu, m_out_gpu, size, tolerance);
-		printf("%6.2f%% match at %7.4f tolerance\n", match_b * 100, tolerance);
+		printf("%6.2f%% match at %8.4f tolerance\n", match_b * 100, tolerance);
 	}
 
 	float p = elapsed_cpu / elapsed_gpu;

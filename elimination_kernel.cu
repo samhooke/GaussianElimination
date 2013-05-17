@@ -145,19 +145,30 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 		check("Launched elimination11_2 kernel");
 		break;
 	case 12:
-		//dimBlock.x = BLOCK_SIZE;
-		//dimBlock.y = BLOCK_SIZE;
-		//dimGrid.x = (size + 1 - 1) / BLOCK_SIZE + 1;
-		//dimGrid.y = (size - 1) / BLOCK_SIZE + 1;
 
+		// Each block consists of a row of 512
 		dimBlock.x = 512;
 		dimBlock.y = 1;
-		dimGrid.x = (size + 1 - 1) / 512 + 1;
-		dimGrid.y = (size - 1) / 1 + 1;
+		dimGrid.x = (size + 1 - 1) / dimBlock.x + 1;
+		dimGrid.y = (size - 1) / dimBlock.y + 1;
 
 		for (int pivot = 0; pivot < size; pivot++) {
 			elimination12_1<<<dimGrid, dimBlock>>>(g_b, size, pivot);
 			elimination12_2<<<dimGrid, dimBlock>>>(g_b, size, pivot);
+		}
+
+		break;
+	case 13:
+
+		// Each block consists of a row of 512
+		dimBlock.x = 512;
+		dimBlock.y = 1;
+		dimGrid.x = (size + 1 - 1) / dimBlock.x + 1;
+		dimGrid.y = (size - 1) / dimBlock.y + 1;
+
+		for (int pivot = 0; pivot < size; pivot++) {
+			elimination13_1<<<dimGrid, dimBlock>>>(g_b, size, pivot);
+			elimination13_2<<<dimGrid, dimBlock>>>(g_b, size, pivot);
 		}
 
 		break;
@@ -529,6 +540,7 @@ __global__ void elimination11_2(float *a, int size) {
 #undef element
 }
 
+// Divides the pivot row
 __global__ void elimination12_1(float *a, int size, int pivot) {
 #define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 
@@ -542,6 +554,7 @@ __global__ void elimination12_1(float *a, int size, int pivot) {
 #undef element
 }
 
+// Subtracts the non-pivot row
 __global__ void elimination12_2(float *a, int size, int pivot) {
 #define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 
@@ -551,6 +564,42 @@ __global__ void elimination12_2(float *a, int size, int pivot) {
 	if (x <= size && y < size)
 		if (y != pivot)
 			element(x, y) -= element(pivot, y) * element(x, pivot);
+
+#undef element
+}
+
+// Divides the pivot row
+__global__ void elimination13_1(float *a, int size, int pivot) {
+#define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
+
+	int x = (threadIdx.x + blockIdx.x * blockDim.x) * 16;
+	int y = threadIdx.y + blockIdx.y * blockDim.y;
+
+	if (y < size)
+		if (y == pivot) {
+			float p = element(pivot, pivot);
+			for (int xx = x; xx < x + 16; xx++)
+				if (xx <= size)
+					element(xx, y) /= p;
+		}
+
+#undef element
+}
+
+// Subtracts the non-pivot row
+__global__ void elimination13_2(float *a, int size, int pivot) {
+#define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
+
+	int x = (threadIdx.x + blockIdx.x * blockDim.x) * 16;
+	int y = threadIdx.y + blockIdx.y * blockDim.y;
+
+	if (y < size)
+		if (y != pivot) {
+			float c = element(pivot, y);
+			for (int xx = x; xx < x + 16; xx++)
+				if (xx <= size)
+					element(xx, y) -= c * element(xx, pivot);
+		}
 
 #undef element
 }

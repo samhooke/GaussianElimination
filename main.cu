@@ -8,14 +8,14 @@ void enter();
 
 int main() {
 	// Select GPU kernel
-	int kernel = 14;
+	int kernel = 15;
 
 	// Timers
 	float elapsed_cpu = 0;
 	float elapsed_gpu = 0;
 
 	// Create two identical input matrices, and two blank output matrices
-	int size = 1000;
+	int size = 511;
 	int type = -1;
 	check("Generating input matrix m_in");
 	float* m_in = matrix_generate(size, type);

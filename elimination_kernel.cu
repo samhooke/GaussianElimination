@@ -120,6 +120,8 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 		elimination10<<<dimGrid, dimBlock>>>(g_b, size);
 		break;
 	case 11:
+
+		// First stage requires 2 dimensions of tiles
 		dimBlock.x = BLOCK_SIZE;
 		dimBlock.y = BLOCK_SIZE;
 		dimGrid.x = (size + 1 - 1) / BLOCK_SIZE + 1;
@@ -134,6 +136,11 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 			sprintf(buffer, "Launched elimination11_1 kernel (pivot = %d)", pivot);
 			check(buffer);
 		}
+
+		// Second stage requires only 1 dimension of tiles
+		dimBlock.y = 1;
+		dimGrid.y = 1;
+
 		elimination11_2<<<dimGrid, dimBlock>>>(g_b, size);
 		check("Launched elimination11_2 kernel");
 		break;
@@ -495,6 +502,11 @@ __global__ void elimination11_1(float *a, int size, int pivot) {
 __global__ void elimination11_2(float *a, int size) {
 #define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 
+	int tid = threadIdx.x + blockIdx.x * blockDim.x;
+
+	element(size, tid) /= element(tid, tid);
+
+	/*
 	int x = threadIdx.x + blockIdx.x * blockDim.x;
 	int y = threadIdx.y + blockIdx.y * blockDim.y;
 
@@ -504,6 +516,7 @@ __global__ void elimination11_2(float *a, int size) {
 	int tid = y * (size + 1) + x;
 
 	element(size, tid) /= element(tid, tid);
+	*/
 
 #undef element
 }

@@ -4,6 +4,8 @@
 #include "elimination_kernel.h"
 #include "check.h"
 
+void enter();
+
 int main() {
 	// Select GPU kernel
 	int kernel = 11;
@@ -31,17 +33,42 @@ int main() {
 	check("Finished Gaussian Elimination on GPU");
 
 	printf("CPU (%fms)\n", elapsed_cpu);
-	elimination_gold_print_matrix(m_out_cpu.elements, size);
+
 	printf("GPU (%fms)\n", elapsed_gpu);
-	elimination_gold_print_matrix(m_out_gpu.elements, size);
+
 
 	// Compare the results with a threshold of tolerance
-	bool match_b = matrix_compare_b(m_out_cpu.elements, m_out_gpu.elements, size, 0.01f);
+	float match_b = matrix_compare_b(m_out_cpu.elements, m_out_gpu.elements, size, 0.01f);
 
 	// Show statistics
-	printf("Column 'b' %s\n", match_b ? "match!" : "do not match.");
+	//printf("Column 'b' %s\n", (match_b ? "match!" : "do not match.");
+	printf("Column 'b' has %f%% match\n", match_b * 100);
 	float p = elapsed_cpu / elapsed_gpu;
 	printf("GPU was %2.2f%% %s\n", ((p < 1 ? 1 / p : p) - 1) * 100, p < 1 ? "slower" : "faster");
 
+	printf("Press enter for column 'b' results...\n");
+	enter();
+
+	printf("             CPU | GPU             \n");
+	printf("-----------------+-----------------\n");
+	for (int i = 0; i < size; i++) {
+		printf("%16.4f | %-16.4f\n", m_out_cpu.elements[i * (size + 1) + size], m_out_gpu.elements[i * (size + 1) + size]);
+		//printf("%16.4f | %-16.4f\n", m_out_cpu.elements[i * (size + 1) + size], m_out_gpu.elements[i * (size + 1) + size] / m_out_gpu.elements[i * (size + 1) + i]);
+	}
+
+	printf("Press enter for full results...\n");
+	enter();
+
+	printf("CPU results:\n");
+	elimination_gold_print_matrix(m_out_cpu.elements, size);
+	printf("GPU results:\n");
+	elimination_gold_print_matrix(m_out_gpu.elements, size);
+
 	return 0;
+}
+
+void enter() {
+	char enter = 0;
+	while (enter != '\r' && enter != '\n')
+		enter = getchar();
 }

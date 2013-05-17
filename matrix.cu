@@ -1,6 +1,6 @@
 #include "matrix.h"
 
-#define MAX_SIZE 1024
+#define MAX_SIZE 2048
 #define MAX_SIZE_TOTAL (MAX_SIZE + 1) * MAX_SIZE
 #define MAX_FILE_READ_SIZE MAX_SIZE * 10 // Some arbitrary number larger than MAX_SIZE
 
@@ -17,7 +17,8 @@ Matrix matrix_generate(int size, int type) {
 		exit(0);
 	}
 
-	float a[MAX_SIZE_TOTAL];
+	//float a[MAX_SIZE_TOTAL];
+	float *a = (float*) malloc(MAX_SIZE_TOTAL * sizeof(float));
 
 	if (type > 0) {
 		// Type is > 0: Load matrix from file
@@ -112,17 +113,14 @@ Matrix matrix_generate(int size, int type) {
 	return m;
 }
 
-bool matrix_compare_b(float *m, float *n, int size, float tolerance) {
+float matrix_compare_b(float *m, float *n, int size, float tolerance) {
 	int sizeTotal = (size + 1) * size;
-	bool match = true;
+	int numMatch = 0;
 
 	// Compare only last column
-	for (unsigned int i = size + 1 - 1; i < sizeTotal; i+= size + 1) {
-		if (m[i] > n[i] + tolerance || m[i] < n[i] - tolerance) {
-			match = false;
-			break;
-		}
-	}
+	for (unsigned int i = size + 1 - 1; i < sizeTotal; i+= size + 1)
+		if (m[i] < n[i] + tolerance && m[i] > n[i] - tolerance)
+			numMatch++;
 
-	return match;
+	return numMatch/size;
 }

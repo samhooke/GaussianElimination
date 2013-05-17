@@ -1,6 +1,6 @@
 #include "elimination_kernel.h"
 
-#define BLOCK_SIZE 16
+#define BLOCK_SIZE 21
 
 float elimination_kernel(float *a, float *b, int size, int kernel) {
 	// Start timers

@@ -172,6 +172,20 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 		}
 
 		break;
+	case 14:
+
+		// Each block consists of a row of 512
+		dimBlock.x = 512;
+		dimBlock.y = 1;
+		dimGrid.x = (size + 1 - 1) / dimBlock.x + 1;
+		dimGrid.y = (size - 1) / dimBlock.y + 1;
+
+		for (int pivot = 0; pivot < size; pivot++) {
+			elimination14_1<<<dimGrid, dimBlock>>>(g_b, size, pivot);
+			elimination14_2<<<dimGrid, dimBlock>>>(g_b, size, pivot);
+		}
+
+		break;
 	}
 
 	check("Finished kernel execution");
@@ -571,35 +585,89 @@ __global__ void elimination12_2(float *a, int size, int pivot) {
 // Divides the pivot row
 __global__ void elimination13_1(float *a, int size, int pivot) {
 #define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
+#define TILE_WIDTH 16
 
-	int x = (threadIdx.x + blockIdx.x * blockDim.x) * 16;
-	int y = threadIdx.y + blockIdx.y * blockDim.y;
+	int x = (threadIdx.x + blockIdx.x * blockDim.x) * TILE_WIDTH;
+	int y = blockIdx.y;
 
 	if (y < size)
 		if (y == pivot) {
 			float p = element(pivot, pivot);
-			for (int xx = x; xx < x + 16; xx++)
+			for (int xx = x; xx < x + TILE_WIDTH; xx++)
 				if (xx <= size)
 					element(xx, y) /= p;
 		}
 
+#undef TILE_WIDTH
 #undef element
 }
 
 // Subtracts the non-pivot row
 __global__ void elimination13_2(float *a, int size, int pivot) {
 #define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
+#define TILE_WIDTH 16
 
-	int x = (threadIdx.x + blockIdx.x * blockDim.x) * 16;
-	int y = threadIdx.y + blockIdx.y * blockDim.y;
+	int x = (threadIdx.x + blockIdx.x * blockDim.x) * TILE_WIDTH;
+	int y = blockIdx.y;
 
 	if (y < size)
 		if (y != pivot) {
 			float c = element(pivot, y);
-			for (int xx = x; xx < x + 16; xx++)
+			for (int xx = x; xx < x + TILE_WIDTH; xx++)
 				if (xx <= size)
 					element(xx, y) -= c * element(xx, pivot);
 		}
 
+#undef TILE_WIDTH
+#undef element
+}
+
+// Divides the pivot row
+__global__ void elimination14_1(float *a, int size, int pivot) {
+#define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
+#define ELEMENTS_PER_THREAD 4
+
+	int y = blockIdx.y;
+
+	if (y >= size || y != pivot)
+		return;
+
+	int x = (threadIdx.x + blockIdx.x * blockDim.x) * ELEMENTS_PER_THREAD;
+	float p = element(pivot, pivot);
+	int xx;
+
+	#pragma unroll
+	for (int i = 0; i < ELEMENTS_PER_THREAD; i++) {
+		xx = i + x;
+		if (xx <= size)
+			element(xx, y) /= p;
+	}
+
+#undef ELEMENTS_PER_THREAD
+#undef element
+}
+
+// Subtracts the non-pivot row
+__global__ void elimination14_2(float *a, int size, int pivot) {
+#define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
+#define ELEMENTS_PER_THREAD 4
+
+	int y = blockIdx.y;
+
+	if (y >= size || y == pivot)
+		return;
+
+	int x = (threadIdx.x + blockIdx.x * blockDim.x) * ELEMENTS_PER_THREAD;
+	float c = element(pivot, y);
+	int xx;
+
+	#pragma unroll
+	for (int i = 0; i < ELEMENTS_PER_THREAD; i++) {
+		xx = i + x;
+		if (xx <= size)
+			element(xx, y) -= c * element(xx, pivot);
+	}
+
+#undef ELEMENTS_PER_THREAD
 #undef element
 }

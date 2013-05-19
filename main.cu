@@ -10,6 +10,9 @@ int main() {
 	// Select GPU kernel
 	int kernel = 16;
 
+	// How many times to run both algorithms
+	int test_num = 10;
+
 	// Timers
 	float elapsed_cpu = 0;
 	float elapsed_gpu = 0;
@@ -24,12 +27,17 @@ int main() {
 	check("Generating blank output matrix m_out_gpu");
 	float* m_out_gpu = matrix_generate(size, 0);
 
-	// Perform Gaussian Elimination
-	check("Performing Gaussian Elimination on CPU");
-	elapsed_cpu = elimination_gold(m_in, m_out_cpu, size);
-	check("Performing Gaussian Elimination on GPU");
-	elapsed_gpu = elimination_kernel(m_in, m_out_gpu, size, kernel);
-	check("Finished Gaussian Elimination on GPU");
+	for (int i = 0; i < test_num; i++) {
+		// Perform Gaussian Elimination
+		check("Performing Gaussian Elimination on CPU");
+		elapsed_cpu += elimination_gold(m_in, m_out_cpu, size);
+		check("Performing Gaussian Elimination on GPU");
+		elapsed_gpu = elimination_kernel(m_in, m_out_gpu, size, kernel);
+		check("Finished Gaussian Elimination on GPU");
+	}
+
+	elapsed_cpu /= test_num;
+	elapsed_gpu /= test_num;
 
 	printf("\nComputation finished. Statistics follow:\n");
 	printf("CPU (%fms)\n", elapsed_cpu);

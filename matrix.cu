@@ -89,7 +89,9 @@ float* matrix_generate(int size, int type) {
 		// Populate arrays with values between -5 and 5
 		// Distribution is not uniform
 		for (unsigned int i = 0; i < sizeTotal; i++) {
-			a[i] = (rand() % 10) - 5;
+			do {
+				a[i] = (rand() % 10) - 5;
+			} while (a[i] > -0.1f && a[i] < 0.1f);
 		}
 	} else if (type == 0) {
 		// Type is 0: Generate a blank matrix
@@ -119,5 +121,5 @@ float matrix_compare_b(float *m, float *n, int size, float tolerance) {
 		if (m[i] < n[i] + tolerance && m[i] > n[i] - tolerance)
 			numMatch++;
 
-	return numMatch/size;
+	return (float) numMatch / (float) size;
 }

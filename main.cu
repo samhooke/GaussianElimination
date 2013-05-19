@@ -8,7 +8,10 @@ void enter();
 
 int main() {
 	// Select GPU kernel
-	int kernel = 5;
+	int kernel = 16;
+
+	// Whether to show statistics
+	bool show_statistics = true;
 
 	// How many times to run both algorithms
 	int test_num = 1;
@@ -18,7 +21,7 @@ int main() {
 	float elapsed_gpu = 0;
 
 	// Create two identical input matrices, and two blank output matrices
-	int size = 64;
+	int size = 511;
 	int type = -1;
 	check("Generating input matrix m_in");
 	float* m_in = matrix_generate(size, type);
@@ -39,38 +42,39 @@ int main() {
 	elapsed_cpu /= test_num;
 	elapsed_gpu /= test_num;
 
-	printf("\nComputation finished. Statistics follow:\n");
-	printf("CPU (%fms)\n", elapsed_cpu);
-	printf("GPU (%fms)\n", elapsed_gpu);
+	if (show_statistics) {
+		printf("\nComputation finished. Statistics follow:\n");
+		printf("CPU (%fms)\n", elapsed_cpu);
+		printf("GPU (%fms)\n", elapsed_gpu);
 
-	// Compare the results with a threshold of tolerance
-	float tolerance;
-	for (tolerance = 100.0f; tolerance > 0.00001f; tolerance /= 10) {
-		float match_b = matrix_compare_b(m_out_cpu, m_out_gpu, size, tolerance);
-		printf("%6.2f%% match at %8.4f tolerance\n", match_b * 100, tolerance);
+		// Compare the results with a threshold of tolerance
+		float tolerance;
+		for (tolerance = 100.0f; tolerance > 0.00001f; tolerance /= 10) {
+			float match_b = matrix_compare_b(m_out_cpu, m_out_gpu, size, tolerance);
+			printf("%6.2f%% match at %8.4f tolerance\n", match_b * 100, tolerance);
+		}
+
+		float p = elapsed_cpu / elapsed_gpu;
+		printf("GPU was %2.2f%% %s\n", ((p < 1 ? 1 / p : p) - 1) * 100, p < 1 ? "slower" : "faster");
+
+		printf("Press enter for column 'b' results...\n");
+		enter();
+
+		printf("             CPU | GPU             \n");
+		printf("-----------------+-----------------\n");
+		for (int i = 0; i < size; i++) {
+			printf("%16.4f | %-16.4f\n", m_out_cpu[i * (size + 1) + size], m_out_gpu[i * (size + 1) + size]);
+			//printf("%16.4f | %-16.4f\n", m_out_cpu.elements[i * (size + 1) + size], m_out_gpu.elements[i * (size + 1) + size] / m_out_gpu.elements[i * (size + 1) + i]);
+		}
+
+		printf("Press enter for full results...\n");
+		enter();
+
+		printf("CPU results:\n");
+		elimination_gold_print_matrix(m_out_cpu, size);
+		printf("GPU results:\n");
+		elimination_gold_print_matrix(m_out_gpu, size);
 	}
-
-	float p = elapsed_cpu / elapsed_gpu;
-	printf("GPU was %2.2f%% %s\n", ((p < 1 ? 1 / p : p) - 1) * 100, p < 1 ? "slower" : "faster");
-
-	printf("Press enter for column 'b' results...\n");
-	enter();
-
-	printf("             CPU | GPU             \n");
-	printf("-----------------+-----------------\n");
-	for (int i = 0; i < size; i++) {
-		printf("%16.4f | %-16.4f\n", m_out_cpu[i * (size + 1) + size], m_out_gpu[i * (size + 1) + size]);
-		//printf("%16.4f | %-16.4f\n", m_out_cpu.elements[i * (size + 1) + size], m_out_gpu.elements[i * (size + 1) + size] / m_out_gpu.elements[i * (size + 1) + i]);
-	}
-
-	printf("Press enter for full results...\n");
-	enter();
-
-	printf("CPU results:\n");
-	elimination_gold_print_matrix(m_out_cpu, size);
-	printf("GPU results:\n");
-	elimination_gold_print_matrix(m_out_gpu, size);
-
 	return 0;
 }
 

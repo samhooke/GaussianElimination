@@ -15,6 +15,7 @@ float elimination_gold(float *a, float *b, int size) {
 	cudaEventCreate(&timer1);
 	cudaEventCreate(&timer2);
 	cudaEventRecord(timer1, 0);
+	cudaEventSynchronize(timer1);
 
 #define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
 	unsigned int xx, yy, rr;

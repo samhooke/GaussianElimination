@@ -13,6 +13,7 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 	cudaEventCreate(&timer1);
 	cudaEventCreate(&timer2);
 	cudaEventRecord(timer1, 0);
+	cudaEventSynchronize(timer1);
 
 	// Copy data to GPU
 	int sizeTotal = (size + 1) * size;

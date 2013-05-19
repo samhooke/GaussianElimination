@@ -72,10 +72,8 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 	case 5:
 		dimBlock.x = BLOCK_SIZE;
 		dimBlock.y = BLOCK_SIZE;
-		dimGrid.x = 1;
-		dimGrid.y = 1;
-		//dimGrid.x = (size + 1 - 1) / BLOCK_SIZE + 1;
-		//dimGrid.y = (size - 1) / BLOCK_SIZE + 1;
+		dimGrid.x = (size + 1 - 1) / BLOCK_SIZE + 1;
+		dimGrid.y = (size - 1) / BLOCK_SIZE + 1;
 		elimination5<<<dimGrid, dimBlock>>>(g_a, g_b, size);
 		break;
 	case 6:
@@ -283,7 +281,7 @@ __global__ void elimination0(float *a, float *b, int size) {
 // ----------------------------- elimination 1 ------------------------------ //
 // Based upon elimination 0. Inner xx loops have been made parallel. Uses only
 // one block, and uses global memory.
-// Max size is 511
+// Max size is 512
 __global__ void elimination1(float *a, float *b, int size) {
 #define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
 	unsigned int xx, yy, rr;
@@ -300,11 +298,16 @@ __global__ void elimination1(float *a, float *b, int size) {
 		// Make the pivot be 1
 		element(xx, yy) /= pivot;
 
+		__syncthreads();
+
 		// Make all other values in the pivot column be zero
 		for (rr = 0; rr < size; rr++) {
 			if (rr != yy)
 				element(xx, rr) -= element(yy, rr) * element(xx, yy);
 		}
+
+		__syncthreads();
+
 	}
 #undef element
 }
@@ -335,6 +338,8 @@ __global__ void elimination2(float *a, float *b, int size) {
 
 		// Make the pivot be 1
 		element(xx, yy) /= pivot;
+
+		__syncthreads();
 
 		// Make all other values in the pivot column be zero
 		if (rr != yy)

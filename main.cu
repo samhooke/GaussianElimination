@@ -8,7 +8,7 @@ void enter();
 
 int main() {
 	// Select GPU kernel
-	int kernel = 13;
+	int kernel = 17;
 
 	// Whether to show statistics
 	bool show_statistics = true;
@@ -21,8 +21,8 @@ int main() {
 	float elapsed_gpu = 0;
 
 	// Create two identical input matrices, and two blank output matrices
-	int size = 3;
-	int type = 1;
+	int size = 4;
+	int type = -1;
 	check("Generating input matrix m_in");
 	float* m_in = matrix_generate(size, type);
 	check("Generating blank output matrix m_out_cpu");
@@ -74,6 +74,8 @@ int main() {
 		elimination_gold_print_matrix(m_out_cpu, size);
 		printf("GPU results:\n");
 		elimination_gold_print_matrix(m_out_gpu, size);
+		printf("Original matrix:\n");
+		elimination_gold_print_matrix(m_in, size);
 	}
 	return 0;
 }

@@ -6,6 +6,9 @@
 // Used by kernels 13, 14 & 15
 #define ELEMENTS_PER_THREAD 4
 
+// Used by kernel 17
+#define SHARED_SIZE 2
+
 float elimination_kernel(float *a, float *b, int size, int kernel) {
 	// Start timers
 	check("Creating timers");
@@ -18,7 +21,7 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 	int sizeTotal = (size + 1) * size;
 	float *g_a, *g_b;
 
-	if (kernel < 8) {
+	if (kernel < 8 || kernel > 16) {
 		// Kernels 1 to 7 require two copies of the matrix
 		cudaMalloc((void**)&g_a, sizeTotal * sizeof(float));
 		check("Allocated memory g_a");
@@ -185,11 +188,50 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 			elimination16_2<<<dimGrid, dimBlock>>>(g_b, size, pivot);
 		}
 		break;
+	case 17:
+		// GPU Kernel 17
+		dimBlock.x = SHARED_SIZE;
+		dimBlock.y = SHARED_SIZE;
+		dimGrid.x = (size + 1 - 1) / dimBlock.x + 1;
+		dimGrid.y = (size - 1) / dimBlock.y + 1;
+
+		float *c = (float*) malloc(sizeTotal * sizeof(float));
+
+		for (int pivot = 0; pivot < size; pivot++) {
+			elimination17_1<<<dimGrid, dimBlock>>>(g_a, g_b, size, pivot);
+			elimination17_2<<<dimGrid, dimBlock>>>(g_b, g_a, size, pivot);
+
+			cudaMemcpy(c, g_a, sizeTotal * sizeof(float), cudaMemcpyDeviceToHost);
+			printf("GPU pivot %d:\n", pivot);
+			elimination_gold_print_matrix(c, size);
+
+			/*
+			if (pivot % 2 == 0)
+				elimination17_1<<<dimGrid, dimBlock>>>(g_a, g_b, size, pivot);
+			else
+				elimination17_1<<<dimGrid, dimBlock>>>(g_b, g_a, size, pivot);
+
+			cudaDeviceSynchronize();
+
+			if (pivot % 2 == 0)
+				cudaMemcpy(c, g_b, sizeTotal * sizeof(float), cudaMemcpyDeviceToHost);
+			else
+				cudaMemcpy(c, g_a, sizeTotal * sizeof(float), cudaMemcpyDeviceToHost);
+
+			printf("GPU pivot %d:\n", pivot);
+			elimination_gold_print_matrix(c, size);
+			*/
+			//elimination17_2<<<dimGrid, dimBlock>>>(g_b, size, pivot);
+		}
+		break;
 	}
 	cudaDeviceSynchronize();
 	check("Executed kernel on GPU");
 
-	cudaMemcpy(b, g_b, sizeTotal * sizeof(float), cudaMemcpyDeviceToHost);
+	if (kernel >= 17)
+		cudaMemcpy(b, g_a, sizeTotal * sizeof(float), cudaMemcpyDeviceToHost);
+	else
+		cudaMemcpy(b, g_b, sizeTotal * sizeof(float), cudaMemcpyDeviceToHost);
 	check("Copied data from device to host");
 
 	// Tidy up
@@ -823,3 +865,64 @@ __global__ void elimination16_2(float *a, int size, int pivot) {
 	*(ayw + x) -= c * *(a + pivotw + x);
 
 }
+
+__global__ void elimination17_1(float *a, float *b, int size, int pivot) {
+#define mread(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
+#define mwrite(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
+
+	__shared__ float p;
+
+	int tx = threadIdx.x;
+	int ty = threadIdx.y;
+	int bx = blockIdx.x;
+	int by = blockIdx.y;
+
+	int x = tx + bx * SHARED_SIZE;
+	int y = ty + by * SHARED_SIZE;
+
+	if (x >= size + 1 || y >= size)
+		return;
+
+	if (tx == 0)
+		p = mread(pivot, pivot);
+
+	__syncthreads();
+
+	if (y == pivot)
+		mwrite(x, y) = mread(x, y) / p;
+	else
+		mwrite(x, y) = mread(x, y);
+
+#undef mread
+#undef mwrite
+}
+
+__global__ void elimination17_2(float *a, float *b, int size, int pivot) {
+#define mread(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
+#define mwrite(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
+
+	//__shared__ float row[SHARED_SIZE];
+	//__shared__ float col[SHARED_SIZE];
+
+	int tx = threadIdx.x;
+	int ty = threadIdx.y;
+	int bx = blockIdx.x;
+	int by = blockIdx.y;
+
+	int x = tx + bx * blockDim.x;
+	int y = ty + by * blockDim.y;
+
+	if (x >= size + 1 || y >= size)
+		return;
+
+	__syncthreads();
+
+	if (y == pivot)
+		mwrite(x, y) = mread(x, y);
+	else
+		mwrite(x, y) = mread(x, y) - mread(pivot, y) * mread(x, pivot);
+
+#undef mread
+#undef mwrite
+}
+

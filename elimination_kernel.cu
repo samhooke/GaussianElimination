@@ -15,61 +15,63 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 	cudaEventRecord(timer1, 0);
 	cudaEventSynchronize(timer1);
 
-	// Copy data to GPU
 	int sizeTotal = (size + 1) * size;
 	float *g_a, *g_b;
 
 	if (kernel < 8) {
-		check("Allocating memory g_a");
+		// Kernels 1 to 7 require two copies of the matrix
 		cudaMalloc((void**)&g_a, sizeTotal * sizeof(float));
-		check("Allocating memory g_b");
+		check("Allocated memory g_a");
 		cudaMalloc((void**)&g_b, sizeTotal * sizeof(float));
+		check("Allocated memory g_b");
 
 		// Copy a to g_a which the device will use for reference
-		check("Copying memory from host to device");
 		cudaMemcpy(g_a, a, sizeTotal * sizeof(float), cudaMemcpyHostToDevice);
+		check("Copied memory from host to device");
 	} else {
-		check("Allocating memory g_b");
+		// Kernels 8+ require one copy of the matrix
 		cudaMalloc((void**)&g_b, sizeTotal * sizeof(float));
+		check("Allocated memory g_b");
 
 		// Copy a to g_b which the device will modify in place
-		check("Copying memory from host to device");
 		cudaMemcpy(g_b, a, sizeTotal * sizeof(float), cudaMemcpyHostToDevice);
+		check("Copied memory from host to device");
 	}
-	check("Copied memory from host to device");
 
 	dim3 dimBlock(1,1,1);
 	dim3 dimGrid(1,1,1);
 
-	// Memory used for debugging
-	float *c = (float*) malloc(sizeTotal * sizeof(float));
-
 	// Execute kernel on GPU
-	check("Executing kernel on GPU");
 	switch (kernel) {
 	case 0:
+		// GPU Kernel 0
 		elimination0<<<dimGrid, dimBlock>>>(g_a, g_b, size);
 		break;
 	case 1:
+		// GPU Kernel 1
 		dimBlock.x = size + 1;
 		elimination1<<<dimGrid, dimBlock>>>(g_a, g_b, size);
 		break;
 	case 2:
+		// GPU Kernel 2
 		dimBlock.x = size + 1;
 		dimBlock.y = size;
 		elimination2<<<dimGrid, dimBlock>>>(g_a, g_b, size);
 		break;
 	case 3:
+		// GPU Kernel 3
 		dimBlock.x = size + 1;
 		dimBlock.y = size;
 		elimination3<<<dimGrid, dimBlock>>>(g_a, g_b, size);
 		break;
 	case 4:
+		// GPU Kernel 4
 		dimBlock.x = size + 1;
 		dimBlock.y = size;
 		elimination4<<<dimGrid, dimBlock>>>(g_a, g_b, size);
 		break;
 	case 5:
+		// GPU Kernel 5
 		dimBlock.x = BLOCK_SIZE;
 		dimBlock.y = BLOCK_SIZE;
 		dimGrid.x = (size + 1 - 1) / BLOCK_SIZE + 1;
@@ -77,154 +79,115 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 		elimination5<<<dimGrid, dimBlock>>>(g_a, g_b, size);
 		break;
 	case 6:
+		// GPU Kernel 6
 		dimBlock.x = size + 1;
 		dimBlock.y = size;
 		elimination6<<<dimGrid, dimBlock>>>(g_a, g_b, size, 0);
 		for (unsigned int i = 1; i < size; i++) {
-			//cudaMemcpy(c, g_b, sizeTotal * sizeof(float), cudaMemcpyDeviceToHost);
-			//printf("Debug %d:\n", i);
-			//elimination_gold_print_matrix(c, size);
 			elimination6<<<dimGrid, dimBlock>>>(g_b, g_b, size, i);
 		}
 		break;
 	case 7:
-		printf("Performing 7\n");
-		// Each block represents one row
-		// Blocks are tiled vertically
-		dimBlock.x = size + 1; // Max of 512 threads per block
+		// GPU Kernel 7
+		dimBlock.x = size + 1;
 		dimGrid.x = size;
-
 		elimination7<<<dimGrid, dimBlock>>>(g_a, g_b, size, 0);
 		for (unsigned int i = 1; i < size; i++) {
-			//cudaMemcpy(c, g_b, sizeTotal * sizeof(float), cudaMemcpyDeviceToHost);
-			//printf("Debug %d:\n", i);
-			//elimination_gold_print_matrix(c, size);
 			elimination7<<<dimGrid, dimBlock>>>(g_b, g_b, size, i);
 		}
 		break;
 	case 8:
+		// GPU Kernel 8
 		dimBlock.x = size + 1;
 		dimBlock.y = size;
-
-		for (unsigned int i = 0; i < size; i++)
+		for (unsigned int i = 0; i < size; i++) {
 			elimination8_1<<<dimGrid, dimBlock>>>(g_b, size, i);
+		}
 		elimination8_2<<<dimGrid, dimBlock>>>(g_b, size);
 		break;
 	case 9:
+		// GPU Kernel 9
 		dimBlock.x = size + 1;
 		dimBlock.y = size;
-
 		elimination9<<<dimGrid, dimBlock>>>(g_b, size);
 		break;
 	case 10:
+		// GPU Kernel 10
 		dimBlock.x = size + 1;
 		dimBlock.y = size;
-
 		elimination10<<<dimGrid, dimBlock>>>(g_b, size);
 		break;
 	case 11:
-
-		// First stage requires 2 dimensions of tiles
+		// GPU Kernel 11
 		dimBlock.x = BLOCK_SIZE;
 		dimBlock.y = BLOCK_SIZE;
 		dimGrid.x = (size + 1 - 1) / BLOCK_SIZE + 1;
 		dimGrid.y = (size - 1) / BLOCK_SIZE + 1;
-
-		char buffer[50];
-
 		for (int pivot = 0; pivot < size; pivot++) {
 			elimination11_1<<<dimGrid, dimBlock>>>(g_b, size, pivot);
-			//cudaDeviceSynchronize();
-
-			sprintf(buffer, "Launched elimination11_1 kernel (pivot = %d)", pivot);
-			check(buffer);
 		}
-
-		// Second stage requires only 1 dimension of tiles
 		dimBlock.y = 1;
 		dimGrid.y = 1;
-
 		elimination11_2<<<dimGrid, dimBlock>>>(g_b, size);
-		check("Launched elimination11_2 kernel");
 		break;
 	case 12:
-
-		// Each block consists of a row of 512
+		// GPU Kernel 12
 		dimBlock.x = 512;
 		dimBlock.y = 1;
 		dimGrid.x = (size + 1 - 1) / dimBlock.x + 1;
 		dimGrid.y = (size - 1) / dimBlock.y + 1;
-
 		for (int pivot = 0; pivot < size; pivot++) {
 			elimination12_1<<<dimGrid, dimBlock>>>(g_b, size, pivot);
 			elimination12_2<<<dimGrid, dimBlock>>>(g_b, size, pivot);
 		}
-
 		break;
 	case 13:
-
-		// Each block consists of a row of 512
+		// GPU Kernel 13
 		dimBlock.x = 512;
 		dimBlock.y = 1;
 		dimGrid.x = (size + 1 - 1) / dimBlock.x + 1;
 		dimGrid.y = (size - 1) / dimBlock.y + 1;
-
 		for (int pivot = 0; pivot < size; pivot++) {
 			elimination13_1<<<dimGrid, dimBlock>>>(g_b, size, pivot);
 			elimination13_2<<<dimGrid, dimBlock>>>(g_b, size, pivot);
 		}
-
 		break;
 	case 14:
-
-		// Each block consists of a row of 512
+		// GPU Kernel 14
 		dimBlock.x = 512;
 		dimBlock.y = 1;
 		dimGrid.x = (size + 1 - 1) / dimBlock.x + 1;
 		dimGrid.y = (size - 1) / dimBlock.y + 1;
-
 		for (int pivot = 0; pivot < size; pivot++) {
 			elimination14_1<<<dimGrid, dimBlock>>>(g_b, size, pivot);
 			elimination14_2<<<dimGrid, dimBlock>>>(g_b, size, pivot);
 		}
-
 		break;
 	case 15:
-
-		// Each block consists of a row of 512
+		// GPU Kernel 15
 		dimBlock.x = 512;
 		dimBlock.y = 1;
 		dimGrid.x = (size + 1 - 1) / dimBlock.x + 1;
 		dimGrid.y = (size - 1) / dimBlock.y + 1;
-
 		for (int pivot = 0; pivot < size; pivot++) {
 			elimination15_1<<<dimGrid, dimBlock>>>(g_b, size, pivot);
 			elimination15_2<<<dimGrid, dimBlock>>>(g_b, size, pivot);
 		}
-
 		break;
 	case 16:
-
-		// Each block consists of a row of 512
+		// GPU Kernel 16
 		dimBlock.x = 512;
 		dimBlock.y = 1;
 		dimGrid.x = (size + 1 - 1) / dimBlock.x + 1;
 		dimGrid.y = (size - 1) / dimBlock.y + 1;
-
 		for (int pivot = 0; pivot < size; pivot++) {
 			elimination16_1<<<dimGrid, dimBlock>>>(g_b, size, pivot);
 			elimination16_2<<<dimGrid, dimBlock>>>(g_b, size, pivot);
 		}
-
 		break;
 	}
+	check("Executed kernel on GPU");
 
-	check("Finished kernel execution");
-	cudaDeviceSynchronize();
-	check("Synchronized with device");
-
-	// Copy data from GPU
-	check("Copying data from device to host");
 	cudaMemcpy(b, g_b, sizeTotal * sizeof(float), cudaMemcpyDeviceToHost);
 	check("Copied data from device to host");
 

@@ -86,12 +86,12 @@ float* matrix_generate(int size, int type) {
 		// Use same seed to ensure identical matrix
 		srand(123);
 
-		// Populate arrays with values between -5 and 5
+		// Populate arrays with values between about -10 and 10
 		// Distribution is not uniform
 		for (unsigned int i = 0; i < sizeTotal; i++) {
 			do {
-				a[i] = (rand() % 10) - 5;
-			} while (a[i] > -0.1f && a[i] < 0.1f);
+				a[i] = (rand() % 20) - 10;
+			} while ((int) a[i] == 0);
 		}
 	} else if (type == 0) {
 		// Type is 0: Generate a blank matrix

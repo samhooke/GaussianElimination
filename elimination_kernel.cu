@@ -7,7 +7,7 @@
 #define ELEMENTS_PER_THREAD 4
 
 // Used by kernel 17
-#define SHARED_SIZE 8
+#define SHARED_SIZE 22
 
 float elimination_kernel(float *a, float *b, int size, int kernel) {
 	// Start timers
@@ -921,6 +921,8 @@ __global__ void elimination17_2(float *a, float *b, int size, int pivot) {
 
 	row[tx] = mread(x, pivot);
 	col[ty] = mread(pivot, y);
+
+	__syncthreads();
 
 	if (y == pivot)
 		mwrite(x, y) = mread(x, y);

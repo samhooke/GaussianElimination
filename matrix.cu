@@ -30,13 +30,13 @@ float* matrix_generate(int size, int type) {
 		case 3:
 			switch (type) {
 			case 1:
-				fp = fopen("example_3x3_1.txt", "r");
+				fp = fopen("data/3x3_1.txt", "r");
 				break;
 			case 2:
-				fp = fopen("example_3x3_2.txt", "r");
+				fp = fopen("data/3x3_2.txt", "r");
 				break;
 			case 3:
-				fp = fopen("example_3x3_3.txt", "r");
+				fp = fopen("data/3x3_3.txt", "r");
 				break;
 			default:
 				flag = true;
@@ -46,7 +46,7 @@ float* matrix_generate(int size, int type) {
 		case 6:
 			switch (type) {
 			case 1:
-				fp = fopen("example_6x6_1.txt", "r");
+				fp = fopen("data/6x6_1.txt", "r");
 				break;
 			default:
 				flag = true;

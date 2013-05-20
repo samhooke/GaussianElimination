@@ -186,6 +186,7 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 		}
 		break;
 	}
+	cudaDeviceSynchronize();
 	check("Executed kernel on GPU");
 
 	cudaMemcpy(b, g_b, sizeTotal * sizeof(float), cudaMemcpyDeviceToHost);

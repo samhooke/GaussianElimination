@@ -7,7 +7,7 @@
 #define ELEMENTS_PER_THREAD 4
 
 // Used by kernel 17
-#define SHARED_SIZE 2
+#define SHARED_SIZE 8
 
 float elimination_kernel(float *a, float *b, int size, int kernel) {
 	// Start timers
@@ -199,11 +199,13 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 
 		for (int pivot = 0; pivot < size; pivot++) {
 			elimination17_1<<<dimGrid, dimBlock>>>(g_a, g_b, size, pivot);
+			cudaDeviceSynchronize();
 			elimination17_2<<<dimGrid, dimBlock>>>(g_b, g_a, size, pivot);
+			cudaDeviceSynchronize();
 
-			cudaMemcpy(c, g_a, sizeTotal * sizeof(float), cudaMemcpyDeviceToHost);
-			printf("GPU pivot %d:\n", pivot);
-			elimination_gold_print_matrix(c, size);
+			//cudaMemcpy(c, g_a, sizeTotal * sizeof(float), cudaMemcpyDeviceToHost);
+			//printf("GPU pivot %d:\n", pivot);
+			//elimination_gold_print_matrix(c, size);
 
 			/*
 			if (pivot % 2 == 0)
@@ -901,8 +903,8 @@ __global__ void elimination17_2(float *a, float *b, int size, int pivot) {
 #define mread(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 #define mwrite(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
 
-	//__shared__ float row[SHARED_SIZE];
-	//__shared__ float col[SHARED_SIZE];
+	__shared__ float row[SHARED_SIZE];
+	__shared__ float col[SHARED_SIZE];
 
 	int tx = threadIdx.x;
 	int ty = threadIdx.y;
@@ -917,10 +919,14 @@ __global__ void elimination17_2(float *a, float *b, int size, int pivot) {
 
 	__syncthreads();
 
+	row[tx] = mread(x, pivot);
+	col[ty] = mread(pivot, y);
+
 	if (y == pivot)
 		mwrite(x, y) = mread(x, y);
 	else
-		mwrite(x, y) = mread(x, y) - mread(pivot, y) * mread(x, pivot);
+		mwrite(x, y) = mread(x, y) - col[ty] * row[tx];
+		//mwrite(x, y) = mread(x, y) - mread(pivot, y) * mread(x, pivot);
 
 #undef mread
 #undef mwrite

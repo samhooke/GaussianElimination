@@ -6,8 +6,8 @@
 // Used by kernels 13, 14 & 15
 #define ELEMENTS_PER_THREAD 4
 
-// Used by kernel 17
-#define SHARED_SIZE 22
+// Used by kernel 17 & 18
+#define SHARED_SIZE 16
 
 float elimination_kernel(float *a, float *b, int size, int kernel) {
 	// Start timers
@@ -195,7 +195,7 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 		dimGrid.x = (size + 1 - 1) / dimBlock.x + 1;
 		dimGrid.y = (size - 1) / dimBlock.y + 1;
 
-		float *c = (float*) malloc(sizeTotal * sizeof(float));
+		//float *c = (float*) malloc(sizeTotal * sizeof(float));
 
 		for (int pivot = 0; pivot < size; pivot++) {
 			elimination17_1<<<dimGrid, dimBlock>>>(g_a, g_b, size, pivot);
@@ -224,6 +224,20 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 			elimination_gold_print_matrix(c, size);
 			*/
 			//elimination17_2<<<dimGrid, dimBlock>>>(g_b, size, pivot);
+		}
+		break;
+	case 18:
+		// GPU Kernel 18
+		dimBlock.x = SHARED_SIZE;
+		dimBlock.y = SHARED_SIZE;
+		dimGrid.x = (size + 1 - 1) / dimBlock.x + 1;
+		dimGrid.y = (size - 1) / dimBlock.y + 1;
+
+		for (int pivot = 0; pivot < size; pivot++) {
+			elimination18_1<<<dimGrid, dimBlock>>>(g_a, g_b, size, pivot);
+			//cudaDeviceSynchronize();
+			elimination18_2<<<dimGrid, dimBlock>>>(g_b, g_a, size, pivot);
+			//cudaDeviceSynchronize();
 		}
 		break;
 	}
@@ -868,6 +882,8 @@ __global__ void elimination16_2(float *a, int size, int pivot) {
 
 }
 
+// ----------------------------- elimination 17 ----------------------------- //
+// A complete rewrite using a tiled implementation and shared memory.
 __global__ void elimination17_1(float *a, float *b, int size, int pivot) {
 #define mread(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 #define mwrite(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
@@ -929,6 +945,70 @@ __global__ void elimination17_2(float *a, float *b, int size, int pivot) {
 	else
 		mwrite(x, y) = mread(x, y) - col[ty] * row[tx];
 		//mwrite(x, y) = mread(x, y) - mread(pivot, y) * mread(x, pivot);
+
+#undef mread
+#undef mwrite
+}
+
+// ----------------------------- elimination 17 ----------------------------- //
+// A complete rewrite using a tiled implementation and shared memory.
+__global__ void elimination18_1(float *a, float *b, int size, int pivot) {
+#define mread(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
+#define mwrite(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
+
+	__shared__ float p;
+
+	int tx = threadIdx.x;
+	int ty = threadIdx.y;
+	int bx = blockIdx.x;
+	int by = blockIdx.y;
+
+	int x = tx + bx * SHARED_SIZE;
+	int y = ty + by * SHARED_SIZE;
+
+	if (x >= size + 1 || y >= size)
+		return;
+
+	if (tx == 0)
+		p = mread(pivot, pivot);
+
+	__syncthreads();
+
+	if (y == pivot)
+		mwrite(x, y) = mread(x, y) / p;
+	else
+		mwrite(x, y) = mread(x, y);
+
+#undef mread
+#undef mwrite
+}
+
+__global__ void elimination18_2(float *a, float *b, int size, int pivot) {
+#define mread(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
+#define mwrite(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
+
+	__shared__ float rc[SHARED_SIZE * 2];
+
+	int tx = threadIdx.x;
+	int ty = threadIdx.y;
+	int bx = blockIdx.x;
+	int by = blockIdx.y;
+
+	int x = tx + bx * blockDim.x;
+	int y = ty + by * blockDim.y;
+
+	if (x >= size + 1 || y >= size)
+		return;
+
+	rc[tx] = mread(x, pivot);
+	rc[ty + SHARED_SIZE] = mread(pivot, y);
+
+	__syncthreads();
+
+	if (y == pivot)
+		mwrite(x, y) = mread(x, y);
+	else
+		mwrite(x, y) = mread(x, y) - rc[ty + SHARED_SIZE] * rc[tx];
 
 #undef mread
 #undef mwrite

@@ -21,7 +21,7 @@ int main() {
 	float elapsed_gpu = 0;
 
 	// Create two identical input matrices, and two blank output matrices
-	int size = 1023;
+	int size = 511;
 	int type = -1;
 	check("Generating input matrix m_in");
 	float* m_in = matrix_generate(size, type);
@@ -33,7 +33,7 @@ int main() {
 	for (int i = 0; i < test_num; i++) {
 		// Perform Gaussian Elimination
 		check("Performing Gaussian Elimination on CPU");
-		elapsed_cpu += elimination_gold(m_in, m_out_cpu, size);
+		elapsed_cpu += elimination_gold2(m_in, m_out_cpu, size);
 		check("Performing Gaussian Elimination on GPU");
 		elapsed_gpu += elimination_kernel(m_in, m_out_gpu, size, kernel);
 		check("Finished Gaussian Elimination on GPU");

@@ -9,7 +9,8 @@
 // Used by kernel 17 & 18
 #define SHARED_SIZE 16
 
-// Used by kernel 19
+// Used by kernel 19 & 20
+// NOTE: For kernel 20, BLOCK_WIDTH must be a factor of (matrix size + 1)
 #define BLOCK_WIDTH 256
 
 float elimination_kernel(float *a, float *b, int size, int kernel) {
@@ -224,6 +225,17 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 		for (int pivot = 0; pivot < size; pivot++) {
 			elimination19_1<<<dimGrid, dimBlock>>>(g_a, g_b, size, pivot);
 			elimination19_2<<<dimGrid, dimBlock>>>(g_b, g_a, size, pivot);
+		}
+		break;
+	case 20:
+		// GPU Kernel 20
+		dimBlock.x = BLOCK_WIDTH;
+		dimBlock.y = 1;
+		dimGrid.x = size / BLOCK_WIDTH + 1;//(size + 1 - 1) / dimBlock.x + 1;
+		dimGrid.y = size;//(size - 1) / dimBlock.y + 1;
+		for (int pivot = 0; pivot < size; pivot++) {
+			elimination20_1<<<dimGrid, dimBlock>>>(g_a, g_b, size, pivot);
+			elimination20_2<<<dimGrid, dimBlock>>>(g_b, g_a, size, pivot);
 		}
 		break;
 	}
@@ -994,10 +1006,13 @@ __global__ void elimination18_2(float *a, float *b, int size, int pivot) {
 }
 
 // ----------------------------- elimination 19 ----------------------------- //
-// Based upon elimination18_1 and elimination17_2.
+// Based upon elimination 17. Works per row instead of per tile. This avoids
+// any divergence occurring.
 __global__ void elimination19_1(float *a, float *b, int size, int pivot) {
 #define mread(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 #define mwrite(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
+
+	__shared__ float p;
 
 	int x = threadIdx.x + blockIdx.x * BLOCK_WIDTH;
 	int y = blockIdx.y;
@@ -1005,12 +1020,15 @@ __global__ void elimination19_1(float *a, float *b, int size, int pivot) {
 	if (x >= size + 1)
 		return;
 
-	if (y == pivot) {
-		float p = mread(pivot, pivot);
+	if (threadIdx.x == 0)
+		p = mread(pivot, pivot);
+
+	__syncthreads();
+
+	if (y == pivot)
 		mwrite(x, y) = mread(x, y) / p;
-	} else {
+	else
 		mwrite(x, y) = mread(x, y);
-	}
 
 #undef mread
 #undef mwrite
@@ -1029,8 +1047,6 @@ __global__ void elimination19_2(float *a, float *b, int size, int pivot) {
 	if (x >= size + 1)
 		return;
 
-	__syncthreads();
-
 	row[threadIdx.x] = mread(x, pivot);
 
 	if (threadIdx.x == 0)
@@ -1042,6 +1058,56 @@ __global__ void elimination19_2(float *a, float *b, int size, int pivot) {
 		mwrite(x, y) = mread(x, y);
 	else
 		mwrite(x, y) = mread(x, y) - col * row[threadIdx.x];
+
+#undef mread
+#undef mwrite
+}
+
+// ----------------------------- elimination 20 ----------------------------- //
+// Based upon elimination 19. Does not check for x bounds, so BLOCK_WIDTH must
+// be a factor of (matrix size + 1) e.g. size = 1023, BLOCK_WIDTH = 256. Also
+// no longer uses shared memory for storing the row, as this is only read once.
+__global__ void elimination20_1(float *a, float *b, int size, int pivot) {
+#define mread(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
+#define mwrite(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
+
+	__shared__ float p;
+
+	int x = threadIdx.x + blockIdx.x * BLOCK_WIDTH;
+	int y = blockIdx.y;
+
+	if (threadIdx.x == 0)
+		p = mread(pivot, pivot);
+
+	__syncthreads();
+
+	if (y == pivot)
+		mwrite(x, y) = mread(x, y) / p;
+	else
+		mwrite(x, y) = mread(x, y);
+
+#undef mread
+#undef mwrite
+}
+
+__global__ void elimination20_2(float *a, float *b, int size, int pivot) {
+#define mread(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
+#define mwrite(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
+
+	__shared__ float col;
+
+	int x = threadIdx.x + blockIdx.x * blockDim.x;
+	int y = blockIdx.y;
+
+	if (threadIdx.x == 0)
+		col = mread(pivot, y);
+
+	__syncthreads();
+
+	if (y == pivot)
+		mwrite(x, y) = mread(x, y);
+	else
+		mwrite(x, y) = mread(x, y) - col * mread(x, pivot);
 
 #undef mread
 #undef mwrite

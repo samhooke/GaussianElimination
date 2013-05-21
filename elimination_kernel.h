@@ -37,5 +37,7 @@ __global__ void elimination18_1(float *a, float *b, int size, int pivot);
 __global__ void elimination18_2(float *a, float *b, int size, int pivot);
 __global__ void elimination19_1(float *a, float *b, int size, int pivot);
 __global__ void elimination19_2(float *a, float *b, int size, int pivot);
+__global__ void elimination20_1(float *a, float *b, int size, int pivot);
+__global__ void elimination20_2(float *a, float *b, int size, int pivot);
 
 #endif //_ELIMINATION_KERNEL_H_

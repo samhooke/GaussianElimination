@@ -916,14 +916,13 @@ __global__ void elimination17_2(float *a, float *b, int size, int pivot) {
 		mwrite(x, y) = mread(x, y);
 	else
 		mwrite(x, y) = mread(x, y) - col[ty] * row[tx];
-		//mwrite(x, y) = mread(x, y) - mread(pivot, y) * mread(x, pivot);
 
 #undef mread
 #undef mwrite
 }
 
 // ----------------------------- elimination 18 ----------------------------- //
-// A complete rewrite using a tiled implementation and shared memory.
+// Based upon elimination 17. Combined
 __global__ void elimination18_1(float *a, float *b, int size, int pivot) {
 #define mread(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 #define mwrite(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
@@ -933,7 +932,7 @@ __global__ void elimination18_1(float *a, float *b, int size, int pivot) {
 	int x = threadIdx.x + blockIdx.x * SHARED_SIZE;
 	int y = threadIdx.y + blockIdx.y * SHARED_SIZE;
 
-	if (x >= size + 1 || y > size)
+	if (x >= size + 1 || y >= size)
 		return;
 
 	if (y == pivot)
@@ -959,18 +958,20 @@ __global__ void elimination18_2(float *a, float *b, int size, int pivot) {
 	int x = tx + bx * blockDim.x;
 	int y = ty + by * blockDim.y;
 
-	if (x >= size + 1 || y > size)
+	if (x >= size + 1 || y >= size)
 		return;
 
+	int ty2 = ty * 2;
+
 	if (tx == 0) {
-		rc[ty] = mread(ty + bx * blockDim.x, pivot);
-		rc[ty + SHARED_SIZE] = mread(pivot, ty + by * blockDim.y);
+		rc[ty2] = mread(ty + bx * blockDim.x, pivot);
+		rc[ty2 + 1] = mread(pivot, ty + by * blockDim.y);
 	}
 
 	__syncthreads();
 
 	if (y != pivot)
-		mwrite(x, y) = mread(x, y) - rc[ty + SHARED_SIZE] * rc[tx];
+		mwrite(x, y) = mread(x, y) - rc[ty2 + 1] * rc[tx * 2];
 	else
 		mwrite(x, y) = mread(x, y);
 

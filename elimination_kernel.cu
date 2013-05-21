@@ -215,14 +215,49 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 
 		cudaMemcpy(g_b, g_a, sizeTotal * sizeof(float), cudaMemcpyDeviceToDevice);
 
-		cudaMemcpy(c, g_b, sizeTotal * sizeof(float), cudaMemcpyDeviceToHost);
-		printf("Before\n");
-		elimination_gold_print_matrix(c, size);
+		//cudaMemcpy(c, g_b, sizeTotal * sizeof(float), cudaMemcpyDeviceToHost);
+		//printf("Before\n");
+		//elimination_gold_print_matrix(c, size);
 
 		for (int pivot = 0; pivot < size; pivot++) {
+			/*
+			for (int row = 0; row < size; row++) {
+				if (row != pivot) {
+					cudaMemcpyAsync(g_a + (row * (size + 1)), g_b + (row * (size + 1)), (size + 1) * sizeof(float), cudaMemcpyDeviceToDevice);
+				}
+			}
+			*/
+			/*
+			for (int row = 0; row < size; row++) {
+				if (row != pivot)
+					cudaMemcpyAsync(g_b + (row * (size + 1)), g_a + (row * (size + 1)), (size + 1) * sizeof(float), cudaMemcpyDeviceToDevice);
+			}
+			*/
+			int mem_1 = pivot - 1;
+			int mem_2 = size - mem_1;
+
+			if (mem_1 > 0)
+				cudaMemcpyAsync(g_b, g_a, mem_1 * (size + 1) * sizeof(float), cudaMemcpyDeviceToDevice);
+			if (mem_2 > 0)
+				cudaMemcpyAsync(g_b + ((pivot + 1) * (size + 1)), g_a + ((pivot + 1) * size + 1), mem_2 * (size + 1) * sizeof(float), cudaMemcpyDeviceToDevice);
+
+			elimination18_1<<<dimGrid, dimBlock>>>(g_a, g_b, size, pivot);
+
+			//cudaMemcpy(g_a, g_b, sizeTotal * sizeof(float), cudaMemcpyDeviceToDevice);
+
+			//for (int row = 0; row < size; row++) {
+			//	cudaMemcpy(g_a + (row * (size + 1)), g_b + (row * (size + 1)), (size + 1) * sizeof(float), cudaMemcpyDeviceToDevice);
+			//}
+			cudaDeviceSynchronize();
+			cudaMemcpyAsync(g_a + (pivot * (size + 1)), g_b + (pivot * (size + 1)), (size + 1) * sizeof(float), cudaMemcpyDeviceToDevice);
+			elimination18_2<<<dimGrid, dimBlock>>>(g_b, g_a, size, pivot);
+			cudaDeviceSynchronize();
+			//cudaMemcpy(g_a, g_b, sizeTotal * sizeof(float), cudaMemcpyDeviceToDevice);
+
 			//dimBlock.y = 1;
 			//dimGrid.y = 1;
-			elimination18_1<<<dimGrid, dimBlock>>>(g_a, g_b, size, pivot);
+			//elimination18_1<<<dimGrid, dimBlock>>>(g_a, g_b, size, pivot);
+			/*
 			printf("pivot %d elimination 18_1 - divide row %d by pivot\n", pivot, pivot);
 
 			cudaMemcpy(c, g_a, sizeTotal * sizeof(float), cudaMemcpyDeviceToHost);
@@ -234,7 +269,9 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 
 			dimBlock.y = yb;
 			dimGrid.y = yg;
-			elimination18_2<<<dimGrid, dimBlock>>>(g_b, g_a, size, pivot);
+			*/
+			//elimination18_2<<<dimGrid, dimBlock>>>(g_b, g_a, size, pivot);
+			/*
 			cudaMemcpy(c, g_a, sizeTotal * sizeof(float), cudaMemcpyDeviceToHost);
 			printf("pivot %d elimination 18_2 - make column %d zero except for row %d\n", pivot, pivot, pivot);
 
@@ -244,7 +281,7 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 			cudaMemcpy(c, g_b, sizeTotal * sizeof(float), cudaMemcpyDeviceToHost);
 			printf("g_b:\n");
 			elimination_gold_print_matrix(c, size);
-
+			*/
 		}
 		break;
 	}
@@ -971,10 +1008,12 @@ __global__ void elimination18_1(float *a, float *b, int size, int pivot) {
 	if (x >= size + 1 || y > size)
 		return;
 
+	//mwrite(x, y) = mread(x, y);
+
 	if (y == pivot)
 		mwrite(x, y) = mread(x, y) / p;
-	else
-		mwrite(x, y) = mread(x, y);
+	//else
+	//	mwrite(x, y) = mread(x, y);
 
 #undef mread
 #undef mwrite
@@ -997,6 +1036,8 @@ __global__ void elimination18_2(float *a, float *b, int size, int pivot) {
 	if (x >= size + 1 || y > size)
 		return;
 
+	//mwrite(x, y) = mread(x, y);
+
 	if (tx == 0) {
 		rc[ty] = mread(ty + bx * blockDim.x, pivot);
 		rc[ty + SHARED_SIZE] = mread(pivot, ty + by * blockDim.y);
@@ -1004,10 +1045,10 @@ __global__ void elimination18_2(float *a, float *b, int size, int pivot) {
 
 	__syncthreads();
 
-	if (y == pivot)
-		mwrite(x, y) = mread(x, y);
-	else
+	if (y != pivot)
 		mwrite(x, y) = mread(x, y) - rc[ty + SHARED_SIZE] * rc[tx];
+	//else
+	//	mwrite(x, y) = mread(x, y);
 
 #undef mread
 #undef mwrite

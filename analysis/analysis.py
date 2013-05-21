@@ -6,7 +6,7 @@ size = 8;
 
 # Choose reference positions
 #reference = [(2,1), (2,2), (3,1), (3,2)]
-reference = [(x, y) for x in range(2,6) for y in range(2,6)]
+reference = [(x, y) for x in range(2,6) for y in range(2,3)]
 #reference = [(x, y) for x in range(2,4) for y in range(1,3)]
 
 # Choose which pivots to display
@@ -28,7 +28,7 @@ os.system(['clear', 'cls'][os.name == 'nt'])
 for y in range(height):
 	for x in range(width):
 		s = matrix[(x,y)]
-		while (len(s) < len(reference)):
+		while (len(s) < len(reference) + 1):
 			s += "."
 		s += " "
 		sys.stdout.write(s)

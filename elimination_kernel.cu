@@ -9,6 +9,9 @@
 // Used by kernel 17 & 18
 #define SHARED_SIZE 16
 
+// Used by kernel 19
+#define BLOCK_WIDTH 256
+
 float elimination_kernel(float *a, float *b, int size, int kernel) {
 	// Start timers
 	check("Creating timers");
@@ -210,6 +213,17 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 		for (int pivot = 0; pivot < size; pivot++) {
 			elimination18_1<<<dimGrid, dimBlock>>>(g_a, g_b, size, pivot);
 			elimination18_2<<<dimGrid, dimBlock>>>(g_b, g_a, size, pivot);
+		}
+		break;
+	case 19:
+		// GPU Kernel 19
+		dimBlock.x = BLOCK_WIDTH;
+		dimBlock.y = 1;
+		dimGrid.x = size / BLOCK_WIDTH + 1;//(size + 1 - 1) / dimBlock.x + 1;
+		dimGrid.y = size;//(size - 1) / dimBlock.y + 1;
+		for (int pivot = 0; pivot < size; pivot++) {
+			elimination19_1<<<dimGrid, dimBlock>>>(g_a, g_b, size, pivot);
+			elimination19_2<<<dimGrid, dimBlock>>>(g_b, g_a, size, pivot);
 		}
 		break;
 	}
@@ -922,7 +936,7 @@ __global__ void elimination17_2(float *a, float *b, int size, int pivot) {
 }
 
 // ----------------------------- elimination 18 ----------------------------- //
-// Based upon elimination 17. Combined
+// Based upon elimination 17. Interweaved shared memory.
 __global__ void elimination18_1(float *a, float *b, int size, int pivot) {
 #define mread(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 #define mwrite(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
@@ -974,6 +988,60 @@ __global__ void elimination18_2(float *a, float *b, int size, int pivot) {
 		mwrite(x, y) = mread(x, y) - rc[ty2 + 1] * rc[tx * 2];
 	else
 		mwrite(x, y) = mread(x, y);
+
+#undef mread
+#undef mwrite
+}
+
+// ----------------------------- elimination 19 ----------------------------- //
+// Based upon elimination18_1 and elimination17_2.
+__global__ void elimination19_1(float *a, float *b, int size, int pivot) {
+#define mread(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
+#define mwrite(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
+
+	int x = threadIdx.x + blockIdx.x * BLOCK_WIDTH;
+	int y = blockIdx.y;
+
+	if (x >= size + 1)
+		return;
+
+	if (y == pivot) {
+		float p = mread(pivot, pivot);
+		mwrite(x, y) = mread(x, y) / p;
+	} else {
+		mwrite(x, y) = mread(x, y);
+	}
+
+#undef mread
+#undef mwrite
+}
+
+__global__ void elimination19_2(float *a, float *b, int size, int pivot) {
+#define mread(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
+#define mwrite(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
+
+	__shared__ float row[BLOCK_WIDTH];
+	__shared__ float col;
+
+	int x = threadIdx.x + blockIdx.x * blockDim.x;
+	int y = blockIdx.y;
+
+	if (x >= size + 1)
+		return;
+
+	__syncthreads();
+
+	row[threadIdx.x] = mread(x, pivot);
+
+	if (threadIdx.x == 0)
+		col = mread(pivot, y);
+
+	__syncthreads();
+
+	if (y == pivot)
+		mwrite(x, y) = mread(x, y);
+	else
+		mwrite(x, y) = mread(x, y) - col * row[threadIdx.x];
 
 #undef mread
 #undef mwrite

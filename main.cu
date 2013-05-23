@@ -49,7 +49,7 @@ int main() {
 
 		// Compare the results with a threshold of tolerance
 		float tolerance;
-		for (tolerance = 100.0f; tolerance > 0.00001f; tolerance /= 10) {
+		for (tolerance = 10000.0f; tolerance > 0.00001f; tolerance /= 10) {
 			float match_b = matrix_compare_b(m_out_cpu, m_out_gpu, size, tolerance);
 			printf("%6.2f%% match at %8.4f tolerance\n", match_b * 100, tolerance);
 		}

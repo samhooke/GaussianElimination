@@ -11,7 +11,7 @@
 
 // Used by kernel 19 & 20
 // NOTE: For kernel 20, BLOCK_WIDTH must be a factor of (matrix size + 1)
-#define BLOCK_WIDTH 256
+#define BLOCK_WIDTH 128
 
 float elimination_kernel(float *a, float *b, int size, int kernel) {
 	// Start timers
@@ -236,6 +236,35 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 		for (int pivot = 0; pivot < size; pivot++) {
 			elimination20_1<<<dimGrid, dimBlock>>>(g_a, g_b, size, pivot);
 			elimination20_2<<<dimGrid, dimBlock>>>(g_b, g_a, size, pivot);
+		}
+		break;
+	case 21:
+		// GPU Kernel 21
+		dimBlock.x = BLOCK_WIDTH;
+		dimBlock.y = 1;
+		dimGrid.x = size / BLOCK_WIDTH + 1;//(size + 1 - 1) / dimBlock.x + 1;
+		dimGrid.y = size;//(size - 1) / dimBlock.y + 1;
+		for (int pivot = 0; pivot < size; pivot++) {
+			elimination21_1<<<dimGrid, dimBlock>>>(g_a, g_b, size, pivot);
+			elimination21_2<<<dimGrid, dimBlock>>>(g_b, g_a, size, pivot);
+		}
+		break;
+	case 22:
+		// GPU Kernel 22
+		dimBlock.x = BLOCK_WIDTH;
+		dimBlock.y = 1;
+		int gx = size / BLOCK_WIDTH + 1;
+		dimGrid.x = gx;//(size + 1 - 1) / dimBlock.x + 1;
+		dimGrid.y = size;//(size - 1) / dimBlock.y + 1;
+
+		int xoffset = 0;
+
+		for (int pivot = 0; pivot < size; pivot++) {
+			xoffset = floor(pivot / BLOCK_WIDTH);
+			dimGrid.x = gx - xoffset;
+			xoffset *= BLOCK_WIDTH;
+			elimination22_1<<<dimGrid, dimBlock>>>(g_a, g_b, size, pivot, xoffset);
+			elimination22_2<<<dimGrid, dimBlock>>>(g_b, g_a, size, pivot, xoffset);
 		}
 		break;
 	}
@@ -1096,7 +1125,116 @@ __global__ void elimination20_2(float *a, float *b, int size, int pivot) {
 
 	__shared__ float col;
 
-	int x = threadIdx.x + blockIdx.x * blockDim.x;
+	int x = threadIdx.x + blockIdx.x * BLOCK_WIDTH;
+	int y = blockIdx.y;
+
+	if (threadIdx.x == 0)
+		col = mread(pivot, y);
+
+	__syncthreads();
+
+	if (y == pivot)
+		mwrite(x, y) = mread(x, y);
+	else
+		mwrite(x, y) = mread(x, y) - col * mread(x, pivot);
+
+#undef mread
+#undef mwrite
+}
+
+// ----------------------------- elimination 21 ----------------------------- //
+// Based upon elimination 20.
+__global__ void elimination21_1(float *a, float *b, int size, int pivot) {
+#define mread(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
+#define mwrite(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
+
+	__shared__ float p;
+
+	int bxw = blockIdx.x * BLOCK_WIDTH;
+
+	if (bxw + BLOCK_WIDTH < pivot)
+		return;
+
+	int x = threadIdx.x + bxw;
+	int y = blockIdx.y;
+
+	if (threadIdx.x == 0)
+		p = mread(pivot, pivot);
+
+	__syncthreads();
+
+	if (y == pivot)
+		mwrite(x, y) = mread(x, y) / p;
+	else
+		mwrite(x, y) = mread(x, y);
+
+#undef mread
+#undef mwrite
+}
+
+__global__ void elimination21_2(float *a, float *b, int size, int pivot) {
+#define mread(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
+#define mwrite(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
+
+	__shared__ float col;
+
+	int bxw = blockIdx.x * BLOCK_WIDTH;
+
+	if (bxw + BLOCK_WIDTH < pivot)
+		return;
+
+	int x = threadIdx.x + bxw;
+	int y = blockIdx.y;
+
+	if (threadIdx.x == 0)
+		col = mread(pivot, y);
+
+	__syncthreads();
+
+	if (y == pivot)
+		mwrite(x, y) = mread(x, y);
+	else
+		mwrite(x, y) = mread(x, y) - col * mread(x, pivot);
+
+#undef mread
+#undef mwrite
+}
+
+// ----------------------------- elimination 22 ----------------------------- //
+// Based upon elimination 21. Applies the same idea of avoiding calculating for
+// x values < pivot, but achieves this through launching less threads rather
+// than dropping unnecessary threads after launch. This is controlled through
+// the xoffset parameter.
+__global__ void elimination22_1(float *a, float *b, int size, int pivot, int xoffset) {
+#define mread(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
+#define mwrite(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
+
+	__shared__ float p;
+
+	int x = threadIdx.x + blockIdx.x * BLOCK_WIDTH + xoffset;
+	int y = blockIdx.y;
+
+	if (threadIdx.x == 0)
+		p = mread(pivot, pivot);
+
+	__syncthreads();
+
+	if (y == pivot)
+		mwrite(x, y) = mread(x, y) / p;
+	else
+		mwrite(x, y) = mread(x, y);
+
+#undef mread
+#undef mwrite
+}
+
+__global__ void elimination22_2(float *a, float *b, int size, int pivot, int xoffset) {
+#define mread(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
+#define mwrite(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
+
+	__shared__ float col;
+
+	int x = threadIdx.x + blockIdx.x * BLOCK_WIDTH + xoffset;
 	int y = blockIdx.y;
 
 	if (threadIdx.x == 0)

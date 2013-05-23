@@ -8,7 +8,7 @@ void enter();
 
 int main() {
 	// Select GPU kernel
-	int kernel = 20;
+	int kernel = 22;
 
 	// Whether to show statistics
 	bool show_statistics = true;
@@ -21,7 +21,7 @@ int main() {
 	float elapsed_gpu = 0;
 
 	// Create two identical input matrices, and two blank output matrices
-	int size = 511;
+	int size = 255;
 	int type = -1;
 	check("Generating input matrix m_in");
 	float* m_in = matrix_generate(size, type);
@@ -64,7 +64,6 @@ int main() {
 		printf("-----------------+-----------------\n");
 		for (int i = 0; i < size; i++) {
 			printf("%16.4f | %-16.4f\n", m_out_cpu[i * (size + 1) + size], m_out_gpu[i * (size + 1) + size]);
-			//printf("%16.4f | %-16.4f\n", m_out_cpu.elements[i * (size + 1) + size], m_out_gpu.elements[i * (size + 1) + size] / m_out_gpu.elements[i * (size + 1) + i]);
 		}
 
 		printf("Press enter for full results...\n");

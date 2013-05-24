@@ -1,6 +1,6 @@
 #include "check.h"
 
-#define SHOW_ALL_CHECKS true
+#define SHOW_ALL_CHECKS false
 
 void check(char* msg) {
 	cudaError_t err = cudaGetLastError();

@@ -27,7 +27,7 @@ tile = [2, 2, 4, 1];
 stages = range(size)
 
 reference = [(x, y) for x in range(tile[0], tile[0] + tile[2])
-					for y in range(tile[1], tile[1] + tile[3])]
+                    for y in range(tile[1], tile[1] + tile[3])]
 height = size;
 width = height + 1;
 matrix = {(x,y):"" for x in range(width) for y in range(height)}

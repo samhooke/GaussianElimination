@@ -1,6 +1,25 @@
 #include "elimination_gold.h"
 #include <stdio.h>
 
+float elimination_gold(float *a, float *b, int size, int kernel) {
+
+	float elapsed;
+
+	switch (kernel) {
+	case 1:
+		elapsed = cpu_kernel_1(a, b, size);
+		break;
+	case 2:
+		elapsed = cpu_kernel_2(a, b, size);
+		break;
+	case 3:
+		elapsed = cpu_kernel_3(a, b, size);
+		break;
+	}
+
+	return elapsed;
+}
+
 // Performs Gauss-Jordan elimination on the CPU; [A]{x]={b}
 // Inputs:
 //   a -> [A], the matrix of coefficients of size 'n' by 'n'
@@ -9,7 +28,7 @@
 // Outputs:
 //   Modifies 'a' into the identity matrix
 //   Modifies 'b' into the solution for {x}
-float elimination_gold(float *a, float *b, int size) {
+float cpu_kernel_1(float *a, float *b, int size) {
 	// Start timers
 	cudaEvent_t timer1, timer2;
 	cudaEventCreate(&timer1);
@@ -25,22 +44,12 @@ float elimination_gold(float *a, float *b, int size) {
 	for (unsigned int i = 0; i < (size + 1) * size; i++)
 		b[i] = a[i];
 
-#ifdef DEBUG
-		printf("Matrix before:\n");
-		elimination_gold_print_matrix(b, size);
-#endif
-
 	for (yy = 0; yy < size; yy++) {
 		float pivot = element(yy, yy);
 
 		// Make the pivot be 1
 		for (xx = 0; xx < size + 1; xx++)
 			element(xx, yy) /= pivot;
-
-#ifdef DEBUG
-		printf("Matrix (Stage 1; Column %d):\n", yy);
-		elimination_gold_print_matrix(b, size);
-#endif
 
 		// Make all other values in the pivot column be zero
 		for (rr = 0; rr < size; rr++) {
@@ -50,12 +59,6 @@ float elimination_gold(float *a, float *b, int size) {
 					element(xx, rr) -= c * element(xx, yy);
 			}
 		}
-
-#ifdef DEBUG
-		printf("Matrix (Stage 2; Column %d):\n", yy);
-		elimination_gold_print_matrix(b, size);
-#endif
-
 	}
 #undef element
 
@@ -68,7 +71,7 @@ float elimination_gold(float *a, float *b, int size) {
 	return elapsed;
 }
 
-float elimination_gold2(float *a, float *b, int size) {
+float cpu_kernel_2(float *a, float *b, int size) {
 	// Start timers
 	cudaEvent_t timer1, timer2;
 	cudaEventCreate(&timer1);
@@ -82,11 +85,6 @@ float elimination_gold2(float *a, float *b, int size) {
 	// The matrix will be modified in place, so first make a copy of matrix a
 	for (unsigned int i = 0; i < (size + 1) * size; i++)
 		b[i] = a[i];
-
-#ifdef DEBUG
-		printf("Matrix before:\n");
-		elimination_gold_print_matrix(b, size);
-#endif
 
 	for (yy = 0; yy < size; yy++) {
 		float pivot = element(yy, yy);
@@ -100,11 +98,6 @@ float elimination_gold2(float *a, float *b, int size) {
 		// Start from yy + 1 instead of 0. The + 1 is because we have calculated done the pivot
 		for (xx = yy + 1; xx < size + 1; xx++)
 			element(xx, yy) /= pivot;
-
-#ifdef DEBUG
-		printf("Matrix (Stage 1; Column %d):\n", yy);
-		elimination_gold_print_matrix(b, size);
-#endif
 
 		// Make all other values in the pivot column be zero
 		for (rr = 0; rr < size; rr++) {
@@ -120,12 +113,6 @@ float elimination_gold2(float *a, float *b, int size) {
 					element(xx, rr) -= c * element(xx, yy);
 			}
 		}
-
-#ifdef DEBUG
-		printf("Matrix (Stage 2; Column %d):\n", yy);
-		elimination_gold_print_matrix(b, size);
-#endif
-
 	}
 #undef element
 
@@ -140,7 +127,7 @@ float elimination_gold2(float *a, float *b, int size) {
 
 // This method suffers some loss in precision and is also slower
 // However, the main loop is simpler
-float elimination_gold3(float *a, float *b, int size) {
+float cpu_kernel_3(float *a, float *b, int size) {
 	// Start timers
 	cudaEvent_t timer1, timer2;
 	cudaEventCreate(&timer1);
@@ -154,11 +141,6 @@ float elimination_gold3(float *a, float *b, int size) {
 	for (unsigned int i = 0; i < (size + 1) * size; i++)
 		b[i] = a[i];
 
-#ifdef DEBUG
-		printf("Matrix before:\n");
-		elimination_gold_print_matrix(b, size);
-#endif
-
 	for (yy = 0; yy < size; yy++) {
 		pivot = element(yy, yy);
 
@@ -170,12 +152,6 @@ float elimination_gold3(float *a, float *b, int size) {
 				for (xx = yy + 1; xx < size + 1; xx++)
 					element(xx, rr) -= c * element(xx, yy) / pivot;
 			}
-
-#ifdef DEBUG
-		printf("Matrix (Column %d):\n", yy);
-		elimination_gold_print_matrix(b, size);
-#endif
-
 		}
 	}
 
@@ -192,25 +168,4 @@ float elimination_gold3(float *a, float *b, int size) {
 	float elapsed;
 	cudaEventElapsedTime(&elapsed, timer1, timer2);
 	return elapsed;
-}
-
-// Prints a matrix in the format of [A]{b}
-// Inputs:
-//   a -> [A], the matrix of coefficients of size 'n' by 'n'
-//   b -> {b}, the vertical matrix of results
-//   n -> width/height of 'a', and height of 'b'
-// Outputs:
-//   Prints out the matrix as a nicely formatted table
-void elimination_gold_print_matrix(float *elements, int size) {
-	bool front, end;
-
-	for (unsigned int i = 0; i < (size + 1) * size; i++) {
-		front = (i % (size + 1) == 0);
-		end = (i % (size + 1) == size );
-
-		if (front) printf("[ ");
-		if (end) printf("| ");
-		printf("%8.4f ", *(elements + i));
-		if (end) printf("]\n");
-	}
 }

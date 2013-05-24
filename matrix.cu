@@ -123,3 +123,24 @@ float matrix_compare_b(float *m, float *n, int size, float tolerance) {
 
 	return (float) numMatch / (float) size;
 }
+
+// Prints a matrix in the format of [A]{b}
+// Inputs:
+//   a -> [A], the matrix of coefficients of size 'n' by 'n'
+//   b -> {b}, the vertical matrix of results
+//   n -> width/height of 'a', and height of 'b'
+// Outputs:
+//   Prints out the matrix as a nicely formatted table
+void matrix_print(float *elements, int size) {
+	bool front, end;
+
+	for (unsigned int i = 0; i < (size + 1) * size; i++) {
+		front = (i % (size + 1) == 0);
+		end = (i % (size + 1) == size );
+
+		if (front) printf("[ ");
+		if (end) printf("| ");
+		printf("%8.4f ", *(elements + i));
+		if (end) printf("]\n");
+	}
+}

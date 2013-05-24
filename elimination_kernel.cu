@@ -1,15 +1,15 @@
 #include "elimination_kernel.h"
 
-// Used by kernel 5 & 11
+// Used by kernel 11
 #define BLOCK_SIZE 16
 
 // Used by kernels 13, 14 & 15
 #define ELEMENTS_PER_THREAD 4
 
-// Used by kernel 17 & 18
+// Used by kernel 17
 #define SHARED_SIZE 16
 
-// Used by kernel 19 & 20
+// Used by kernel 19, 20, 21 & 22
 // NOTE: For kernel 20, BLOCK_WIDTH must be a factor of (matrix size + 1)
 #define BLOCK_WIDTH 128
 
@@ -51,8 +51,14 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 	// Execute kernel on GPU
 	switch (kernel) {
 	case 0:
-		// GPU Kernel 0
-		elimination0<<<dimGrid, dimBlock>>>(g_a, g_b, size);
+	case 5:
+	case 6:
+	case 7:
+	case 9:
+	case 10:
+	case 18:
+		fprintf(stderr, "GPU Kernel %d has been deleted.\n", kernel);
+		exit(0);
 		break;
 	case 1:
 		// GPU Kernel 1
@@ -77,32 +83,6 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 		dimBlock.y = size;
 		elimination4<<<dimGrid, dimBlock>>>(g_a, g_b, size);
 		break;
-	case 5:
-		// GPU Kernel 5
-		dimBlock.x = BLOCK_SIZE;
-		dimBlock.y = BLOCK_SIZE;
-		dimGrid.x = (size + 1 - 1) / BLOCK_SIZE + 1;
-		dimGrid.y = (size - 1) / BLOCK_SIZE + 1;
-		elimination5<<<dimGrid, dimBlock>>>(g_a, g_b, size);
-		break;
-	case 6:
-		// GPU Kernel 6
-		dimBlock.x = size + 1;
-		dimBlock.y = size;
-		elimination6<<<dimGrid, dimBlock>>>(g_a, g_b, size, 0);
-		for (unsigned int i = 1; i < size; i++) {
-			elimination6<<<dimGrid, dimBlock>>>(g_b, g_b, size, i);
-		}
-		break;
-	case 7:
-		// GPU Kernel 7
-		dimBlock.x = size + 1;
-		dimGrid.x = size;
-		elimination7<<<dimGrid, dimBlock>>>(g_a, g_b, size, 0);
-		for (unsigned int i = 1; i < size; i++) {
-			elimination7<<<dimGrid, dimBlock>>>(g_b, g_b, size, i);
-		}
-		break;
 	case 8:
 		// GPU Kernel 8
 		dimBlock.x = size + 1;
@@ -111,18 +91,6 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 			elimination8_1<<<dimGrid, dimBlock>>>(g_b, size, i);
 		}
 		elimination8_2<<<dimGrid, dimBlock>>>(g_b, size);
-		break;
-	case 9:
-		// GPU Kernel 9
-		dimBlock.x = size + 1;
-		dimBlock.y = size;
-		elimination9<<<dimGrid, dimBlock>>>(g_b, size);
-		break;
-	case 10:
-		// GPU Kernel 10
-		dimBlock.x = size + 1;
-		dimBlock.y = size;
-		elimination10<<<dimGrid, dimBlock>>>(g_b, size);
 		break;
 	case 11:
 		// GPU Kernel 11
@@ -205,17 +173,6 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 			cudaDeviceSynchronize();
 		}
 		break;
-	case 18:
-		// GPU Kernel 18
-		dimBlock.x = SHARED_SIZE;
-		dimBlock.y = SHARED_SIZE;
-		dimGrid.x = (size + 1 - 1) / dimBlock.x + 1;
-		dimGrid.y = (size - 1) / dimBlock.y + 1;
-		for (int pivot = 0; pivot < size; pivot++) {
-			elimination18_1<<<dimGrid, dimBlock>>>(g_a, g_b, size, pivot);
-			elimination18_2<<<dimGrid, dimBlock>>>(g_b, g_a, size, pivot);
-		}
-		break;
 	case 19:
 		// GPU Kernel 19
 		dimBlock.x = BLOCK_WIDTH;
@@ -267,6 +224,9 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 			elimination22_2<<<dimGrid, dimBlock>>>(g_b, g_a, size, pivot, xoffset);
 		}
 		break;
+	default:
+		fprintf(stderr, "GPU Kernel %d does not exist.\n", kernel);
+		exit(0);
 	}
 	cudaDeviceSynchronize();
 	check("Executed kernel on GPU");
@@ -297,39 +257,9 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 	return elapsed;
 }
 
-// ----------------------------- elimination 0 ------------------------------ //
-// This is a terrible solution which simply executes the CPU code upon the GPU.
-__global__ void elimination0(float *a, float *b, int size) {
-#define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
-	unsigned int xx, yy, rr;
-	float c;
-
-	// The matrix will be modified in place, so first make a copy of matrix a
-	for (unsigned int i = 0; i < (size + 1) * size; i++)
-		b[i] = a[i];
-
-	for (yy = 0; yy < size; yy++) {
-		float pivot = element(yy, yy);
-
-		// Make the pivot be 1
-		for (xx = 0; xx < size + 1; xx++)
-			element(xx, yy) /= pivot;
-
-		// Make all other values in the pivot column be zero
-		for (rr = 0; rr < size; rr++) {
-			if (rr != yy) {
-				c = element(yy, rr);
-				for (xx = 0; xx < size + 1; xx++)
-					element(xx, rr) -= c * element(xx, yy);
-			}
-		}
-	}
-#undef element
-}
-
 // ----------------------------- elimination 1 ------------------------------ //
-// Based upon elimination 0. Inner xx loops have been made parallel. Uses only
-// one block, and uses global memory.
+// Based upon elimination_gold. Inner xx loops have been made parallel. Uses
+// only one block, and uses global memory.
 // Max size is 511
 __global__ void elimination1(float *a, float *b, int size) {
 #define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
@@ -468,92 +398,6 @@ __global__ void elimination4(float *a, float *b, int size) {
 #undef element
 }
 
-// ----------------------------- elimination 5 ------------------------------ //
-// A new approach. Tries to use tiled implementation. Does not work.
-// Max size is ???
-__global__ void elimination5(float *a, float *b, int size) {
-#define element(_x, _y) (*(sdata + ((_y) * (size + 1) + (_x))))
-	unsigned int xx, yy, rr;
-
-	__shared__ float sdata[BLOCK_SIZE * BLOCK_SIZE];
-
-	xx = threadIdx.x;
-	rr = threadIdx.y;
-
-	int tid = rr * (size + 1) + xx;
-
-	sdata[tid] = a[blockDim.y * BLOCK_SIZE + blockDim.x + tid];
-
-	for (yy = 0; yy < size; yy++) {
-
-		__syncthreads();
-
-		// Make the pivot be 1
-		element(xx, yy) /= element(yy, yy);
-
-		__syncthreads();
-
-		// Make all other values in the pivot column be zero
-		if (rr != yy)
-			element(xx, rr) -= element(yy, rr) * element(xx, yy);
-	}
-
-	b[blockDim.y * BLOCK_SIZE + blockDim.x + tid] = sdata[tid];
-#undef element
-}
-
-// ----------------------------- elimination 6 ------------------------------ //
-// Another new approach. Kernel is invoked once per pivot. There is just one
-// block, with thread dimensions equal to matrix dimensions.
-// Max size is 22
-__global__ void elimination6(float *a, float *b, int size, int pivot) {
-#define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
-	int x = threadIdx.x;
-	int y = threadIdx.y;
-
-	int tid = y * (size + 1) + x;
-	b[tid] = a[tid];
-
-	if (y == pivot)
-		element(x, y) /= element(pivot, pivot);
-
-	__syncthreads();
-
-	if (y != pivot)
-		element(x, y) -= element(pivot, y) * element(x, pivot);
-
-#undef element
-}
-
-// ----------------------------- elimination 7 ------------------------------ //
-// Based upon elimination 6. Uses multiple blocks, with fixed dimension sizes.
-// Does not work.
-// Max size is ???
-__global__ void elimination7(float *a, float *b, int size, int pivot) {
-#define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
-
-	int x = threadIdx.x;
-	int y = blockDim.x;
-
-	if (x < size + 1 && y < size) {
-		int tid = y * (size + 1) + x;
-
-		b[tid] = a[tid];
-
-		__syncthreads();
-
-		if (y == pivot)
-			element(x, y) /= element(pivot, pivot);
-
-		__syncthreads();
-
-		if (y != pivot)
-			element(x, y) -= element(pivot, y) * element(x, pivot);
-	}
-
-#undef element
-}
-
 // ----------------------------- elimination 8 ------------------------------ //
 // Yet another new approach. Splits the problem into two kernels, and changes
 // the logic of the algorithm slightly. The division and subtraction has been
@@ -577,65 +421,6 @@ __global__ void elimination8_2(float *a, int size) {
 #define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 	int yy = threadIdx.y * (size + 1) + threadIdx.x;
 	element(size, yy) /= element(yy, yy);
-#undef element
-}
-
-// ----------------------------- elimination 9 ------------------------------ //
-// Based upon elimination 8. Both parts 8_1 and 8_2 have been combined together.
-// Max size is 22
-__global__ void elimination9(float *a, int size) {
-#define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
-	int x = threadIdx.x;
-	int y = threadIdx.y;
-
-	float cp;
-
-	for (int pivot = 0; pivot < size; pivot++) {
-
-		cp = element(pivot, y) / element(pivot, pivot);
-
-		if (y != pivot)
-			element(x, y) -= cp * element(x, pivot);
-
-		__syncthreads();
-	}
-
-	int yy = threadIdx.y * (size + 1) + threadIdx.x;
-	element(size, yy) /= element(yy, yy);
-#undef element
-}
-
-// ----------------------------- elimination 10 ----------------------------- //
-// Based upon elimination 9. Uses shared memory. Limited by amount of shared
-// memory per block.
-// Max size is 22
-__global__ void elimination10(float *a, int size) {
-#define element(_x, _y) (*(sdata + ((_y) * (size + 1) + (_x))))
-
-	int x = threadIdx.x;
-	int y = threadIdx.y;
-	int tid = y * (size + 1) + x;
-
-	__shared__ float sdata[(22 + 1) * 22]; // Max size that will fit is 22
-	sdata[tid] = a[tid];
-
-	float cp;
-
-	for (int pivot = 0; pivot < size; pivot++) {
-
-		cp = element(pivot, y) / element(pivot, pivot);
-
-		if (y != pivot)
-			element(x, y) -= cp * element(x, pivot);
-
-		__syncthreads();
-	}
-
-	element(size, tid) /= element(tid, tid);
-
-	__syncthreads();
-
-	a[tid] = sdata[tid];
 #undef element
 }
 
@@ -971,64 +756,6 @@ __global__ void elimination17_2(float *a, float *b, int size, int pivot) {
 		mwrite(x, y) = mread(x, y);
 	else
 		mwrite(x, y) = mread(x, y) - col[ty] * row[tx];
-
-#undef mread
-#undef mwrite
-}
-
-// ----------------------------- elimination 18 ----------------------------- //
-// Based upon elimination 17. Interweaved shared memory.
-__global__ void elimination18_1(float *a, float *b, int size, int pivot) {
-#define mread(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
-#define mwrite(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
-
-	float p = mread(pivot, pivot);
-
-	int x = threadIdx.x + blockIdx.x * SHARED_SIZE;
-	int y = threadIdx.y + blockIdx.y * SHARED_SIZE;
-
-	if (x >= size + 1 || y >= size)
-		return;
-
-	if (y == pivot)
-		mwrite(x, y) = mread(x, y) / p;
-	else
-		mwrite(x, y) = mread(x, y);
-
-#undef mread
-#undef mwrite
-}
-
-__global__ void elimination18_2(float *a, float *b, int size, int pivot) {
-#define mread(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
-#define mwrite(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
-
-	__shared__ float rc[SHARED_SIZE * 2];
-
-	int tx = threadIdx.x;
-	int ty = threadIdx.y;
-	int bx = blockIdx.x;
-	int by = blockIdx.y;
-
-	int x = tx + bx * blockDim.x;
-	int y = ty + by * blockDim.y;
-
-	if (x >= size + 1 || y >= size)
-		return;
-
-	int ty2 = ty * 2;
-
-	if (tx == 0) {
-		rc[ty2] = mread(ty + bx * blockDim.x, pivot);
-		rc[ty2 + 1] = mread(pivot, ty + by * blockDim.y);
-	}
-
-	__syncthreads();
-
-	if (y != pivot)
-		mwrite(x, y) = mread(x, y) - rc[ty2 + 1] * rc[tx * 2];
-	else
-		mwrite(x, y) = mread(x, y);
 
 #undef mread
 #undef mwrite

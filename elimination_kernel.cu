@@ -330,7 +330,7 @@ __global__ void elimination0(float *a, float *b, int size) {
 // ----------------------------- elimination 1 ------------------------------ //
 // Based upon elimination 0. Inner xx loops have been made parallel. Uses only
 // one block, and uses global memory.
-// Max size is 512
+// Max size is 511
 __global__ void elimination1(float *a, float *b, int size) {
 #define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
 	unsigned int xx, yy, rr;
@@ -400,7 +400,7 @@ __global__ void elimination2(float *a, float *b, int size) {
 }
 
 // ----------------------------- elimination 3 ------------------------------ //
-// Based upon elimination 3. Data is copied in parallel.
+// Based upon elimination 2. Data is copied in parallel.
 // Max size is 22
 __global__ void elimination3(float *a, float *b, int size) {
 #define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
@@ -1143,7 +1143,9 @@ __global__ void elimination20_2(float *a, float *b, int size, int pivot) {
 }
 
 // ----------------------------- elimination 21 ----------------------------- //
-// Based upon elimination 20.
+// Based upon elimination 20. Avoids calculating elements for tiles that are
+// left of the pivot, because this does not affect the final column. This is
+// done on a per-tile bases to avoid divergence.
 __global__ void elimination21_1(float *a, float *b, int size, int pivot) {
 #define mread(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 #define mwrite(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))

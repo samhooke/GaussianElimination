@@ -62,31 +62,37 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 		break;
 	case 1:
 		// GPU Kernel 1
+
 		dimBlock.x = size + 1;
+
 		elimination1<<<dimGrid, dimBlock>>>(g_a, g_b, size);
 		break;
 	case 2:
-		// GPU Kernel 2
-		dimBlock.x = size + 1;
-		dimBlock.y = size;
-		elimination2<<<dimGrid, dimBlock>>>(g_a, g_b, size);
-		break;
 	case 3:
-		// GPU Kernel 3
-		dimBlock.x = size + 1;
-		dimBlock.y = size;
-		elimination3<<<dimGrid, dimBlock>>>(g_a, g_b, size);
-		break;
 	case 4:
-		// GPU Kernel 4
+		// GPU Kernel 2, 3 & 4
+
 		dimBlock.x = size + 1;
 		dimBlock.y = size;
-		elimination4<<<dimGrid, dimBlock>>>(g_a, g_b, size);
+
+		switch (kernel) {
+		case 2:
+			elimination2<<<dimGrid, dimBlock>>>(g_a, g_b, size);
+			break;
+		case 3:
+			elimination3<<<dimGrid, dimBlock>>>(g_a, g_b, size);
+			break;
+		case 4:
+			elimination4<<<dimGrid, dimBlock>>>(g_a, g_b, size);
+			break;
+		}
 		break;
 	case 8:
 		// GPU Kernel 8
+
 		dimBlock.x = size + 1;
 		dimBlock.y = size;
+
 		for (unsigned int i = 0; i < size; i++) {
 			elimination8_1<<<dimGrid, dimBlock>>>(g_b, size, i);
 		}
@@ -94,93 +100,88 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 		break;
 	case 11:
 		// GPU Kernel 11
+
 		dimBlock.x = BLOCK_SIZE;
 		dimBlock.y = BLOCK_SIZE;
 		dimGrid.x = (size + 1 - 1) / BLOCK_SIZE + 1;
 		dimGrid.y = (size - 1) / BLOCK_SIZE + 1;
+
 		for (int pivot = 0; pivot < size; pivot++) {
 			elimination11_1<<<dimGrid, dimBlock>>>(g_b, size, pivot);
 		}
+
 		dimBlock.y = 1;
 		dimGrid.y = 1;
+
 		elimination11_2<<<dimGrid, dimBlock>>>(g_b, size);
 		break;
 	case 12:
-		// GPU Kernel 12
-		dimBlock.x = 512;
-		dimBlock.y = 1;
-		dimGrid.x = (size + 1 - 1) / dimBlock.x + 1;
-		dimGrid.y = (size - 1) / dimBlock.y + 1;
-		for (int pivot = 0; pivot < size; pivot++) {
-			elimination12_1<<<dimGrid, dimBlock>>>(g_b, size, pivot);
-			elimination12_2<<<dimGrid, dimBlock>>>(g_b, size, pivot);
-		}
-		break;
 	case 13:
-		// GPU Kernel 13
-		dimBlock.x = 512;
-		dimBlock.y = 1;
-		dimGrid.x = (size + 1 - 1) / dimBlock.x + 1;
-		dimGrid.y = (size - 1) / dimBlock.y + 1;
-		for (int pivot = 0; pivot < size; pivot++) {
-			elimination13_1<<<dimGrid, dimBlock>>>(g_b, size, pivot);
-			elimination13_2<<<dimGrid, dimBlock>>>(g_b, size, pivot);
-		}
-		break;
 	case 14:
-		// GPU Kernel 14
-		dimBlock.x = 512;
-		dimBlock.y = 1;
-		dimGrid.x = (size + 1 - 1) / dimBlock.x + 1;
-		dimGrid.y = (size - 1) / dimBlock.y + 1;
-		for (int pivot = 0; pivot < size; pivot++) {
-			elimination14_1<<<dimGrid, dimBlock>>>(g_b, size, pivot);
-			elimination14_2<<<dimGrid, dimBlock>>>(g_b, size, pivot);
-		}
-		break;
 	case 15:
-		// GPU Kernel 15
-		dimBlock.x = 512;
-		dimBlock.y = 1;
-		dimGrid.x = (size + 1 - 1) / dimBlock.x + 1;
-		dimGrid.y = (size - 1) / dimBlock.y + 1;
-		for (int pivot = 0; pivot < size; pivot++) {
-			elimination15_1<<<dimGrid, dimBlock>>>(g_b, size, pivot);
-			elimination15_2<<<dimGrid, dimBlock>>>(g_b, size, pivot);
-		}
-		break;
 	case 16:
-		// GPU Kernel 16
+		// GPU Kernel 12, 13, 14, 15 & 16
+
 		dimBlock.x = 512;
 		dimBlock.y = 1;
 		dimGrid.x = (size + 1 - 1) / dimBlock.x + 1;
 		dimGrid.y = (size - 1) / dimBlock.y + 1;
-		for (int pivot = 0; pivot < size; pivot++) {
-			elimination16_1<<<dimGrid, dimBlock>>>(g_b, size, pivot);
-			elimination16_2<<<dimGrid, dimBlock>>>(g_b, size, pivot);
+
+		switch (kernel) {
+		case 12:
+			for (int pivot = 0; pivot < size; pivot++) {
+				elimination12_1<<<dimGrid, dimBlock>>>(g_b, size, pivot);
+				elimination12_2<<<dimGrid, dimBlock>>>(g_b, size, pivot);
+			}
+			break;
+		case 13:
+			for (int pivot = 0; pivot < size; pivot++) {
+				elimination13_1<<<dimGrid, dimBlock>>>(g_b, size, pivot);
+				elimination13_2<<<dimGrid, dimBlock>>>(g_b, size, pivot);
+			}
+			break;
+		case 14:
+			for (int pivot = 0; pivot < size; pivot++) {
+				elimination14_1<<<dimGrid, dimBlock>>>(g_b, size, pivot);
+				elimination14_2<<<dimGrid, dimBlock>>>(g_b, size, pivot);
+			}
+			break;
+		case 15:
+			for (int pivot = 0; pivot < size; pivot++) {
+				elimination15_1<<<dimGrid, dimBlock>>>(g_b, size, pivot);
+				elimination15_2<<<dimGrid, dimBlock>>>(g_b, size, pivot);
+			}
+			break;
+		case 16:
+			for (int pivot = 0; pivot < size; pivot++) {
+				elimination16_1<<<dimGrid, dimBlock>>>(g_b, size, pivot);
+				elimination16_2<<<dimGrid, dimBlock>>>(g_b, size, pivot);
+			}
+			break;
 		}
 		break;
 	case 17:
 		// GPU Kernel 17
+
 		dimBlock.x = SHARED_SIZE;
 		dimBlock.y = SHARED_SIZE;
 		dimGrid.x = (size + 1 - 1) / dimBlock.x + 1;
 		dimGrid.y = (size - 1) / dimBlock.y + 1;
+
 		for (int pivot = 0; pivot < size; pivot++) {
 			elimination17_1<<<dimGrid, dimBlock>>>(g_a, g_b, size, pivot);
-			cudaDeviceSynchronize();
 			elimination17_2<<<dimGrid, dimBlock>>>(g_b, g_a, size, pivot);
-			cudaDeviceSynchronize();
 		}
 		break;
 	case 19:
 	case 20:
 	case 21:
 		// GPU Kernel 19, 20 & 21
+
 		dimBlock.x = BLOCK_WIDTH;
 		dimBlock.y = 1;
-		dimGrid.x = size / BLOCK_WIDTH + 1; //(size + 1 - 1) / dimBlock.x + 1;
-		dimGrid.y = size; //(size - 1) / dimBlock.y + 1;
+		dimGrid.x = (size + 1 - 1) / BLOCK_WIDTH + 1;
+		dimGrid.y = size;
 
 		switch (kernel) {
 		case 19:
@@ -206,11 +207,12 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 	case 22:
 	case 23:
 		// GPU Kernel 22 & 23
+
+		int gx = size / BLOCK_WIDTH + 1;
 		dimBlock.x = BLOCK_WIDTH;
 		dimBlock.y = 1;
-		int gx = size / BLOCK_WIDTH + 1;
-		dimGrid.x = gx;//(size + 1 - 1) / dimBlock.x + 1;
-		dimGrid.y = size;//(size - 1) / dimBlock.y + 1;
+		dimGrid.x = gx;
+		dimGrid.y = size;
 
 		int xoffset = 0;
 

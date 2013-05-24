@@ -10,7 +10,7 @@
 #define SHARED_SIZE 16
 
 // Used by kernel 19, 20, 21 & 22
-// NOTE: For kernel 20, BLOCK_WIDTH must be a factor of (matrix size + 1)
+// For kernels 20, 21 & 22, BLOCK_WIDTH must be a factor of (size + 1)
 #define BLOCK_WIDTH 128
 
 float elimination_kernel(float *a, float *b, int size, int kernel) {
@@ -224,9 +224,6 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 			elimination22_2<<<dimGrid, dimBlock>>>(g_b, g_a, size, pivot, xoffset);
 		}
 		break;
-	default:
-		fprintf(stderr, "GPU Kernel %d does not exist.\n", kernel);
-		exit(0);
 	}
 	cudaDeviceSynchronize();
 	check("Executed kernel on GPU");
@@ -368,8 +365,8 @@ __global__ void elimination4(float *a, float *b, int size) {
 #define element(_x, _y) (*(sdata + ((_y) * (size + 1) + (_x))))
 	unsigned int xx, yy, rr;
 
-	// With a limit of 512 threads per block, and only one block, this results in a maximum
-	// of a matrix size 22, which requires (22 + 1) x 22 values
+	// With a limit of 512 threads per block, and only one block, this results
+	//in a maximum of a matrix size 22, which requires (22 + 1) x 22 values
 	__shared__ float sdata[(22 + 1) * 22];
 
 	xx = threadIdx.x;

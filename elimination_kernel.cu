@@ -1,16 +1,16 @@
 #include "elimination_kernel.h"
 
-// Used by kernel 11
+// Used by kernel 6
 #define BLOCK_SIZE 16
 
-// Used by kernels 13, 14 & 15
+// Used by kernels 8, 9 & 10
 #define ELEMENTS_PER_THREAD 4
 
-// Used by kernel 17
+// Used by kernel 12
 #define SHARED_SIZE 16
 
-// Used by kernel 19, 20, 21 & 22
-// For kernels 20, 21 & 22, BLOCK_WIDTH must be a factor of (size + 1)
+// Used by kernel 13, 14, 15, 16 & 17
+// For kernels >= 14, BLOCK_WIDTH must be a factor of (size + 1)
 #define BLOCK_WIDTH 128
 
 float elimination_kernel(float *a, float *b, int size, int kernel) {
@@ -25,8 +25,8 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 	int sizeTotal = (size + 1) * size;
 	float *g_a, *g_b;
 
-	if (kernel < 8 || kernel > 16) {
-		// Kernels 1 to 7 require two copies of the matrix
+	if (kernel < 5 || kernel > 11) {
+		// Kernels 1 to 4 require two copies of the matrix
 		cudaMalloc((void**)&g_a, sizeTotal * sizeof(float));
 		check("Allocated memory g_a");
 		cudaMalloc((void**)&g_b, sizeTotal * sizeof(float));
@@ -36,7 +36,7 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 		cudaMemcpy(g_a, a, sizeTotal * sizeof(float), cudaMemcpyHostToDevice);
 		check("Copied memory from host to device");
 	} else {
-		// Kernels 8 to 16 require one copy of the matrix
+		// Kernels 5 to 11 require one copy of the matrix
 		cudaMalloc((void**)&g_b, sizeTotal * sizeof(float));
 		check("Allocated memory g_b");
 
@@ -50,22 +50,12 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 
 	// Execute kernel on GPU
 	switch (kernel) {
-	case 0:
-	case 5:
-	case 6:
-	case 7:
-	case 9:
-	case 10:
-	case 18:
-		fprintf(stderr, "GPU Kernel %d has been deleted.\n", kernel);
-		exit(0);
-		break;
 	case 1:
 		// GPU Kernel 1
 
 		dimBlock.x = size + 1;
 
-		elimination1<<<dimGrid, dimBlock>>>(g_a, g_b, size);
+		gpu_kernel_1<<<dimGrid, dimBlock>>>(g_a, g_b, size);
 		break;
 	case 2:
 	case 3:
@@ -77,29 +67,29 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 
 		switch (kernel) {
 		case 2:
-			elimination2<<<dimGrid, dimBlock>>>(g_a, g_b, size);
+			gpu_kernel_2<<<dimGrid, dimBlock>>>(g_a, g_b, size);
 			break;
 		case 3:
-			elimination3<<<dimGrid, dimBlock>>>(g_a, g_b, size);
+			gpu_kernel_3<<<dimGrid, dimBlock>>>(g_a, g_b, size);
 			break;
 		case 4:
-			elimination4<<<dimGrid, dimBlock>>>(g_a, g_b, size);
+			gpu_kernel_4<<<dimGrid, dimBlock>>>(g_a, g_b, size);
 			break;
 		}
 		break;
-	case 8:
-		// GPU Kernel 8
+	case 5:
+		// GPU Kernel 5
 
 		dimBlock.x = size + 1;
 		dimBlock.y = size;
 
 		for (unsigned int i = 0; i < size; i++) {
-			elimination8_1<<<dimGrid, dimBlock>>>(g_b, size, i);
+			gpu_kernel_5a<<<dimGrid, dimBlock>>>(g_b, size, i);
 		}
-		elimination8_2<<<dimGrid, dimBlock>>>(g_b, size);
+		gpu_kernel_5b<<<dimGrid, dimBlock>>>(g_b, size);
 		break;
-	case 11:
-		// GPU Kernel 11
+	case 6:
+		// GPU Kernel 6
 
 		dimBlock.x = BLOCK_SIZE;
 		dimBlock.y = BLOCK_SIZE;
@@ -107,20 +97,20 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 		dimGrid.y = (size - 1) / BLOCK_SIZE + 1;
 
 		for (int pivot = 0; pivot < size; pivot++) {
-			elimination11_1<<<dimGrid, dimBlock>>>(g_b, size, pivot);
+			gpu_kernel_6a<<<dimGrid, dimBlock>>>(g_b, size, pivot);
 		}
 
 		dimBlock.y = 1;
 		dimGrid.y = 1;
 
-		elimination11_2<<<dimGrid, dimBlock>>>(g_b, size);
+		gpu_kernel_6b<<<dimGrid, dimBlock>>>(g_b, size);
 		break;
-	case 12:
-	case 13:
-	case 14:
-	case 15:
-	case 16:
-		// GPU Kernel 12, 13, 14, 15 & 16
+	case 7:
+	case 8:
+	case 9:
+	case 10:
+	case 11:
+		// GPU Kernel 7, 8, 9, 10 & 11
 
 		dimBlock.x = 512;
 		dimBlock.y = 1;
@@ -128,40 +118,40 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 		dimGrid.y = (size - 1) / dimBlock.y + 1;
 
 		switch (kernel) {
-		case 12:
+		case 7:
 			for (int pivot = 0; pivot < size; pivot++) {
-				elimination12_1<<<dimGrid, dimBlock>>>(g_b, size, pivot);
-				elimination12_2<<<dimGrid, dimBlock>>>(g_b, size, pivot);
+				gpu_kernel_7a<<<dimGrid, dimBlock>>>(g_b, size, pivot);
+				gpu_kernel_7b<<<dimGrid, dimBlock>>>(g_b, size, pivot);
 			}
 			break;
-		case 13:
+		case 8:
 			for (int pivot = 0; pivot < size; pivot++) {
-				elimination13_1<<<dimGrid, dimBlock>>>(g_b, size, pivot);
-				elimination13_2<<<dimGrid, dimBlock>>>(g_b, size, pivot);
+				gpu_kernel_8a<<<dimGrid, dimBlock>>>(g_b, size, pivot);
+				gpu_kernel_8b<<<dimGrid, dimBlock>>>(g_b, size, pivot);
 			}
 			break;
-		case 14:
+		case 9:
 			for (int pivot = 0; pivot < size; pivot++) {
-				elimination14_1<<<dimGrid, dimBlock>>>(g_b, size, pivot);
-				elimination14_2<<<dimGrid, dimBlock>>>(g_b, size, pivot);
+				gpu_kernel_9a<<<dimGrid, dimBlock>>>(g_b, size, pivot);
+				gpu_kernel_9b<<<dimGrid, dimBlock>>>(g_b, size, pivot);
 			}
 			break;
-		case 15:
+		case 10:
 			for (int pivot = 0; pivot < size; pivot++) {
-				elimination15_1<<<dimGrid, dimBlock>>>(g_b, size, pivot);
-				elimination15_2<<<dimGrid, dimBlock>>>(g_b, size, pivot);
+				gpu_kernel_10a<<<dimGrid, dimBlock>>>(g_b, size, pivot);
+				gpu_kernel_10b<<<dimGrid, dimBlock>>>(g_b, size, pivot);
 			}
 			break;
-		case 16:
+		case 11:
 			for (int pivot = 0; pivot < size; pivot++) {
-				elimination16_1<<<dimGrid, dimBlock>>>(g_b, size, pivot);
-				elimination16_2<<<dimGrid, dimBlock>>>(g_b, size, pivot);
+				gpu_kernel_11a<<<dimGrid, dimBlock>>>(g_b, size, pivot);
+				gpu_kernel_11b<<<dimGrid, dimBlock>>>(g_b, size, pivot);
 			}
 			break;
 		}
 		break;
-	case 17:
-		// GPU Kernel 17
+	case 12:
+		// GPU Kernel 12
 
 		dimBlock.x = SHARED_SIZE;
 		dimBlock.y = SHARED_SIZE;
@@ -169,14 +159,14 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 		dimGrid.y = (size - 1) / dimBlock.y + 1;
 
 		for (int pivot = 0; pivot < size; pivot++) {
-			elimination17_1<<<dimGrid, dimBlock>>>(g_a, g_b, size, pivot);
-			elimination17_2<<<dimGrid, dimBlock>>>(g_b, g_a, size, pivot);
+			gpu_kernel_12a<<<dimGrid, dimBlock>>>(g_a, g_b, size, pivot);
+			gpu_kernel_12b<<<dimGrid, dimBlock>>>(g_b, g_a, size, pivot);
 		}
 		break;
-	case 19:
-	case 20:
-	case 21:
-		// GPU Kernel 19, 20 & 21
+	case 13:
+	case 14:
+	case 15:
+		// GPU Kernel 13, 14 & 15
 
 		dimBlock.x = BLOCK_WIDTH;
 		dimBlock.y = 1;
@@ -184,29 +174,29 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 		dimGrid.y = size;
 
 		switch (kernel) {
-		case 19:
+		case 13:
 			for (int pivot = 0; pivot < size; pivot++) {
-				elimination19_1<<<dimGrid, dimBlock>>>(g_a, g_b, size, pivot);
-				elimination19_2<<<dimGrid, dimBlock>>>(g_b, g_a, size, pivot);
+				gpu_kernel_13a<<<dimGrid, dimBlock>>>(g_a, g_b, size, pivot);
+				gpu_kernel_13b<<<dimGrid, dimBlock>>>(g_b, g_a, size, pivot);
 			}
 			break;
-		case 20:
+		case 14:
 			for (int pivot = 0; pivot < size; pivot++) {
-				elimination20_1<<<dimGrid, dimBlock>>>(g_a, g_b, size, pivot);
-				elimination20_2<<<dimGrid, dimBlock>>>(g_b, g_a, size, pivot);
+				gpu_kernel_14a<<<dimGrid, dimBlock>>>(g_a, g_b, size, pivot);
+				gpu_kernel_14b<<<dimGrid, dimBlock>>>(g_b, g_a, size, pivot);
 			}
 			break;
-		case 21:
+		case 15:
 			for (int pivot = 0; pivot < size; pivot++) {
-				elimination21_1<<<dimGrid, dimBlock>>>(g_a, g_b, size, pivot);
-				elimination21_2<<<dimGrid, dimBlock>>>(g_b, g_a, size, pivot);
+				gpu_kernel_15a<<<dimGrid, dimBlock>>>(g_a, g_b, size, pivot);
+				gpu_kernel_15b<<<dimGrid, dimBlock>>>(g_b, g_a, size, pivot);
 			}
 			break;
 		}
 		break;
-	case 22:
-	case 23:
-		// GPU Kernel 22 & 23
+	case 16:
+	case 17:
+		// GPU Kernel 16 & 17
 
 		int gx = size / BLOCK_WIDTH + 1;
 		dimBlock.x = BLOCK_WIDTH;
@@ -217,23 +207,23 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 		int xoffset = 0;
 
 		switch (kernel) {
-		case 22:
+		case 16:
 			for (int pivot = 0; pivot < size; pivot++) {
 				xoffset = floor(pivot / BLOCK_WIDTH);
 				dimGrid.x = gx - xoffset;
 				xoffset *= BLOCK_WIDTH;
-				elimination22_1<<<dimGrid, dimBlock>>>(g_a, g_b, size, pivot, xoffset);
-				elimination22_2<<<dimGrid, dimBlock>>>(g_b, g_a, size, pivot, xoffset);
+				gpu_kernel_16a<<<dimGrid, dimBlock>>>(g_a, g_b, size, pivot, xoffset);
+				gpu_kernel_16b<<<dimGrid, dimBlock>>>(g_b, g_a, size, pivot, xoffset);
 			}
 			break;
-		case 23:
+		case 17:
 			int s = size + 1;
 			for (int pivot = 0; pivot < size; pivot++) {
 				xoffset = floor(pivot / BLOCK_WIDTH);
 				dimGrid.x = gx - xoffset;
 				xoffset *= BLOCK_WIDTH;
-				elimination23_1<<<dimGrid, dimBlock>>>(g_a, g_b, s, pivot, xoffset);
-				elimination23_2<<<dimGrid, dimBlock>>>(g_b, g_a, s, pivot, xoffset);
+				gpu_kernel_17a<<<dimGrid, dimBlock>>>(g_a, g_b, s, pivot, xoffset);
+				gpu_kernel_17b<<<dimGrid, dimBlock>>>(g_b, g_a, s, pivot, xoffset);
 			}
 			break;
 		}
@@ -242,7 +232,7 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 	cudaDeviceSynchronize();
 	check("Executed kernel on GPU");
 
-	if (kernel >= 17)
+	if (kernel >= 12)
 		cudaMemcpy(b, g_a, sizeTotal * sizeof(float), cudaMemcpyDeviceToHost);
 	else
 		cudaMemcpy(b, g_b, sizeTotal * sizeof(float), cudaMemcpyDeviceToHost);
@@ -250,7 +240,7 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 
 	// Tidy up
 	check("Freeing memory");
-	if (kernel < 8) {
+	if (kernel < 5) {
 		cudaFree(g_a);
 		cudaFree(g_b);
 	} else {
@@ -268,11 +258,11 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 	return elapsed;
 }
 
-// ----------------------------- elimination 1 ------------------------------ //
-// Based upon elimination_gold. Inner xx loops have been made parallel. Uses
+// ----------------------------- GPU Kernel 1 ------------------------------- //
+// Based upon CPU Kernel 1. Inner xx loops have been made parallel. Uses
 // only one block, and uses global memory.
 // Max size is 511
-__global__ void elimination1(float *a, float *b, int size) {
+__global__ void gpu_kernel_1(float *a, float *b, int size) {
 #define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
 	unsigned int xx, yy, rr;
 
@@ -302,15 +292,15 @@ __global__ void elimination1(float *a, float *b, int size) {
 #undef element
 }
 
-// ----------------------------- elimination 2 ------------------------------ //
-// Based upon elimination 1. Both xx and rr loops are now in parallel. Because
+// ----------------------------- GPU Kernel 2 ------------------------------- //
+// Based upon GPU Kernel 1. Both xx and rr loops are now in parallel. Because
 // the grid is now 2D, the max size has dropped from 511 to 22. This is because
 // the max size is limited by the number of threads per block, which is 512.
 // The number of threads required per size is ((size + 1) * size). 22 is the
 // largest number for which this result is less than 512:
 //   ((22 + 1) * 22) < 512, ((23 + 1) * 23) > 512; 23 will not fit, 22 will.
 // Max size is 22
-__global__ void elimination2(float *a, float *b, int size) {
+__global__ void gpu_kernel_2(float *a, float *b, int size) {
 #define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
 	unsigned int xx, yy, rr;
 
@@ -340,10 +330,10 @@ __global__ void elimination2(float *a, float *b, int size) {
 #undef element
 }
 
-// ----------------------------- elimination 3 ------------------------------ //
-// Based upon elimination 2. Data is copied in parallel.
+// ----------------------------- GPU Kernel 3 ------------------------------- //
+// Based upon GPU Kernel 2. Data is copied in parallel.
 // Max size is 22
-__global__ void elimination3(float *a, float *b, int size) {
+__global__ void gpu_kernel_3(float *a, float *b, int size) {
 #define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
 	unsigned int xx, yy, rr;
 
@@ -372,10 +362,10 @@ __global__ void elimination3(float *a, float *b, int size) {
 #undef element
 }
 
-// ----------------------------- elimination 4 ------------------------------ //
-// Based upon elimination 3. Shared memory is used.
+// ----------------------------- GPU Kernel 4 ------------------------------- //
+// Based upon GPU Kernel 3. Shared memory is used.
 // Max size is 22
-__global__ void elimination4(float *a, float *b, int size) {
+__global__ void gpu_kernel_4(float *a, float *b, int size) {
 #define element(_x, _y) (*(sdata + ((_y) * (size + 1) + (_x))))
 	unsigned int xx, yy, rr;
 
@@ -409,13 +399,13 @@ __global__ void elimination4(float *a, float *b, int size) {
 #undef element
 }
 
-// ----------------------------- elimination 8 ------------------------------ //
+// ----------------------------- GPU Kernel 5 ------------------------------- //
 // Yet another new approach. Splits the problem into two kernels, and changes
 // the logic of the algorithm slightly. The division and subtraction has been
-// combined into one operation in part 8_1. However, the result must be divided
-// one last time in part 8_2.
+// combined into one operation in part 5a. However, the result must be divided
+// one last time in part 5b.
 // Max size is 22
-__global__ void elimination8_1(float *a, int size, int pivot) {
+__global__ void gpu_kernel_5a(float *a, int size, int pivot) {
 #define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 	int x = threadIdx.x;
 	int y = threadIdx.y;
@@ -428,18 +418,18 @@ __global__ void elimination8_1(float *a, int size, int pivot) {
 #undef element
 }
 
-__global__ void elimination8_2(float *a, int size) {
+__global__ void gpu_kernel_5b(float *a, int size) {
 #define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 	int yy = threadIdx.y * (size + 1) + threadIdx.x;
 	element(size, yy) /= element(yy, yy);
 #undef element
 }
 
-// ----------------------------- elimination 11 ----------------------------- //
-// Loosely based upon elimination 8. Applies the same logic but uses a tiled
+// ----------------------------- GPU Kernel 6 ------------------------------- //
+// Loosely based upon GPU Kernel 5. Applies the same logic but uses a tiled
 // implementation.
 // Max size is ???
-__global__ void elimination11_1(float *a, int size, int pivot) {
+__global__ void gpu_kernel_6a(float *a, int size, int pivot) {
 #define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 
 	int x = threadIdx.x + blockIdx.x * blockDim.x;
@@ -456,7 +446,7 @@ __global__ void elimination11_1(float *a, int size, int pivot) {
 #undef element
 }
 
-__global__ void elimination11_2(float *a, int size) {
+__global__ void gpu_kernel_6b(float *a, int size) {
 #define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 
 	int tid = threadIdx.x + blockIdx.x * blockDim.x;
@@ -469,11 +459,11 @@ __global__ void elimination11_2(float *a, int size) {
 #undef element
 }
 
-// ----------------------------- elimination 12 ----------------------------- //
-// Based upon elimination 11. Each block contains 512x1 threads that operate on
+// ----------------------------- GPU Kernel 7 ------------------------------- //
+// Based upon GPU Kernel 6. Each block contains 512x1 threads that operate on
 // a row each.
 // Max size is 511
-__global__ void elimination12_1(float *a, int size, int pivot) {
+__global__ void gpu_kernel_7a(float *a, int size, int pivot) {
 #define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 
 	int x = threadIdx.x + blockIdx.x * blockDim.x;
@@ -486,7 +476,7 @@ __global__ void elimination12_1(float *a, int size, int pivot) {
 #undef element
 }
 
-__global__ void elimination12_2(float *a, int size, int pivot) {
+__global__ void gpu_kernel_7b(float *a, int size, int pivot) {
 #define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 
 	int x = threadIdx.x + blockIdx.x * blockDim.x;
@@ -499,12 +489,12 @@ __global__ void elimination12_2(float *a, int size, int pivot) {
 #undef element
 }
 
-// ----------------------------- elimination 13 ----------------------------- //
-// Based upon elimination 12. Conditions and calculations have been rearranged
+// ----------------------------- GPU Kernel 8 ------------------------------- //
+// Based upon GPU Kernel 7. Conditions and calculations have been rearranged
 // to ensure threads don't perform unnecessary work. Each thread calculates
 // result for multiple elements.
 // Max size is ((512 * ELEMENTS_PER_THREAD) - 1)
-__global__ void elimination13_1(float *a, int size, int pivot) {
+__global__ void gpu_kernel_8a(float *a, int size, int pivot) {
 #define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 
 	int x = (threadIdx.x + blockIdx.x * blockDim.x) * ELEMENTS_PER_THREAD;
@@ -521,7 +511,7 @@ __global__ void elimination13_1(float *a, int size, int pivot) {
 #undef element
 }
 
-__global__ void elimination13_2(float *a, int size, int pivot) {
+__global__ void gpu_kernel_8b(float *a, int size, int pivot) {
 #define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 
 	int x = (threadIdx.x + blockIdx.x * blockDim.x) * ELEMENTS_PER_THREAD;
@@ -538,11 +528,11 @@ __global__ void elimination13_2(float *a, int size, int pivot) {
 #undef element
 }
 
-// ----------------------------- elimination 14 ----------------------------- //
-// Based upon elimination 13. Loops have been completely unrolled, and have
+// ----------------------------- GPU Kernel 9 ------------------------------- //
+// Based upon GPU Kernel 8. Loops have been completely unrolled, and have
 // been made slightly more efficient through caching 'xx'.
 // Max size is ((512 * ELEMENTS_PER_THREAD) - 1)
-__global__ void elimination14_1(float *a, int size, int pivot) {
+__global__ void gpu_kernel_9a(float *a, int size, int pivot) {
 #define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 
 	int y = blockIdx.y;
@@ -564,7 +554,7 @@ __global__ void elimination14_1(float *a, int size, int pivot) {
 #undef element
 }
 
-__global__ void elimination14_2(float *a, int size, int pivot) {
+__global__ void gpu_kernel_9b(float *a, int size, int pivot) {
 #define element(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 
 	int y = blockIdx.y;
@@ -586,11 +576,11 @@ __global__ void elimination14_2(float *a, int size, int pivot) {
 #undef element
 }
 
-// ----------------------------- elimination 15 ----------------------------- //
-// Based upon elimination 14. Access to matrix elements has been made more
+// ----------------------------- GPU Kernel 10 ------------------------------ //
+// Based upon GPU Kernel 9. Access to matrix elements has been made more
 // efficient through combining redundant operations.
 // Max size is ((512 * ELEMENTS_PER_THREAD) - 1)
-__global__ void elimination15_1(float *a, int size, int pivot) {
+__global__ void gpu_kernel_10a(float *a, int size, int pivot) {
 
 	int y = blockIdx.y;
 
@@ -624,7 +614,7 @@ __global__ void elimination15_1(float *a, int size, int pivot) {
 	}
 }
 
-__global__ void elimination15_2(float *a, int size, int pivot) {
+__global__ void gpu_kernel_10b(float *a, int size, int pivot) {
 
 	int y = blockIdx.y;
 
@@ -660,14 +650,14 @@ __global__ void elimination15_2(float *a, int size, int pivot) {
 	}
 }
 
-// ----------------------------- elimination 16 ----------------------------- //
-// Based upon elimination 15. Removed ELEMENTS_PER_THREAD, which unfortunately
+// ----------------------------- GPU Kernel 11 ------------------------------ //
+// Based upon GPU Kernel 10. Removed ELEMENTS_PER_THREAD, which unfortunately
 // decreases the max size back to 511, but opens up the possibility for several
 // more optimizations. For example, we can now use the check (x < pivot) to drop
 // some threads, because any x value left of the pivot will not affect the final
 // outcome of the algorithm.
 // Max size is 511
-__global__ void elimination16_1(float *a, int size, int pivot) {
+__global__ void gpu_kernel_11a(float *a, int size, int pivot) {
 
 	int y = blockIdx.y;
 
@@ -684,7 +674,7 @@ __global__ void elimination16_1(float *a, int size, int pivot) {
 
 }
 
-__global__ void elimination16_2(float *a, int size, int pivot) {
+__global__ void gpu_kernel_11b(float *a, int size, int pivot) {
 
 	int y = blockIdx.y;
 
@@ -705,9 +695,9 @@ __global__ void elimination16_2(float *a, int size, int pivot) {
 
 }
 
-// ----------------------------- elimination 17 ----------------------------- //
+// ----------------------------- GPU Kernel 12 ------------------------------ //
 // A complete rewrite using a tiled implementation and shared memory.
-__global__ void elimination17_1(float *a, float *b, int size, int pivot) {
+__global__ void gpu_kernel_12a(float *a, float *b, int size, int pivot) {
 #define mread(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 #define mwrite(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
 
@@ -738,7 +728,7 @@ __global__ void elimination17_1(float *a, float *b, int size, int pivot) {
 #undef mwrite
 }
 
-__global__ void elimination17_2(float *a, float *b, int size, int pivot) {
+__global__ void gpu_kernel_12b(float *a, float *b, int size, int pivot) {
 #define mread(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 #define mwrite(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
 
@@ -772,10 +762,10 @@ __global__ void elimination17_2(float *a, float *b, int size, int pivot) {
 #undef mwrite
 }
 
-// ----------------------------- elimination 19 ----------------------------- //
-// Based upon elimination 17. Works per row instead of per tile. This avoids
+// ----------------------------- GPU Kernel 13 ------------------------------ //
+// Based upon GPU Kernel 12. Works per row instead of per tile. This avoids
 // any divergence occurring.
-__global__ void elimination19_1(float *a, float *b, int size, int pivot) {
+__global__ void gpu_kernel_13a(float *a, float *b, int size, int pivot) {
 #define mread(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 #define mwrite(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
 
@@ -801,7 +791,7 @@ __global__ void elimination19_1(float *a, float *b, int size, int pivot) {
 #undef mwrite
 }
 
-__global__ void elimination19_2(float *a, float *b, int size, int pivot) {
+__global__ void gpu_kernel_13b(float *a, float *b, int size, int pivot) {
 #define mread(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 #define mwrite(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
 
@@ -830,11 +820,11 @@ __global__ void elimination19_2(float *a, float *b, int size, int pivot) {
 #undef mwrite
 }
 
-// ----------------------------- elimination 20 ----------------------------- //
-// Based upon elimination 19. Does not check for x bounds, so BLOCK_WIDTH must
+// ----------------------------- GPU Kernel 14 ------------------------------ //
+// Based upon GPU Kernel 13. Does not check for x bounds, so BLOCK_WIDTH must
 // be a factor of (matrix size + 1) e.g. size = 1023, BLOCK_WIDTH = 256. Also
 // no longer uses shared memory for storing the row, as this is only read once.
-__global__ void elimination20_1(float *a, float *b, int size, int pivot) {
+__global__ void gpu_kernel_14a(float *a, float *b, int size, int pivot) {
 #define mread(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 #define mwrite(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
 
@@ -857,7 +847,7 @@ __global__ void elimination20_1(float *a, float *b, int size, int pivot) {
 #undef mwrite
 }
 
-__global__ void elimination20_2(float *a, float *b, int size, int pivot) {
+__global__ void gpu_kernel_14b(float *a, float *b, int size, int pivot) {
 #define mread(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 #define mwrite(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
 
@@ -880,11 +870,11 @@ __global__ void elimination20_2(float *a, float *b, int size, int pivot) {
 #undef mwrite
 }
 
-// ----------------------------- elimination 21 ----------------------------- //
-// Based upon elimination 20. Avoids calculating elements for tiles that are
+// ----------------------------- GPU Kernel 15 ------------------------------ //
+// Based upon GPU Kernel 14. Avoids calculating elements for tiles that are
 // left of the pivot, because this does not affect the final column. This is
 // done on a per-tile bases to avoid divergence.
-__global__ void elimination21_1(float *a, float *b, int size, int pivot) {
+__global__ void gpu_kernel_15a(float *a, float *b, int size, int pivot) {
 #define mread(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 #define mwrite(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
 
@@ -912,7 +902,7 @@ __global__ void elimination21_1(float *a, float *b, int size, int pivot) {
 #undef mwrite
 }
 
-__global__ void elimination21_2(float *a, float *b, int size, int pivot) {
+__global__ void gpu_kernel_15b(float *a, float *b, int size, int pivot) {
 #define mread(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 #define mwrite(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
 
@@ -940,12 +930,12 @@ __global__ void elimination21_2(float *a, float *b, int size, int pivot) {
 #undef mwrite
 }
 
-// ----------------------------- elimination 22 ----------------------------- //
-// Based upon elimination 21. Applies the same idea of avoiding calculating for
+// ----------------------------- GPU Kernel 16 ------------------------------ //
+// Based upon GPU Kernel 15. Applies the same idea of avoiding calculating for
 // x values < pivot, but achieves this through launching less threads rather
 // than dropping unnecessary threads after launch. This is controlled through
 // the xoffset parameter.
-__global__ void elimination22_1(float *a, float *b, int size, int pivot, int xoffset) {
+__global__ void gpu_kernel_16a(float *a, float *b, int size, int pivot, int xoffset) {
 #define mread(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 #define mwrite(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
 
@@ -968,7 +958,7 @@ __global__ void elimination22_1(float *a, float *b, int size, int pivot, int xof
 #undef mwrite
 }
 
-__global__ void elimination22_2(float *a, float *b, int size, int pivot, int xoffset) {
+__global__ void gpu_kernel_16b(float *a, float *b, int size, int pivot, int xoffset) {
 #define mread(_x, _y) (*(a + ((_y) * (size + 1) + (_x))))
 #define mwrite(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
 
@@ -991,11 +981,11 @@ __global__ void elimination22_2(float *a, float *b, int size, int pivot, int xof
 #undef mwrite
 }
 
-// ----------------------------- elimination 23 ----------------------------- //
-// Based upon elimination 22. Access to matrix data is more efficient. Also, the
+// ----------------------------- GPU Kernel 17 ------------------------------ //
+// Based upon GPU Kernel 16. Access to matrix data is more efficient. Also, the
 // value of size is incremented by 1 before being passed through the function
 // arguments, because (size + 1) was always used in the GPU code.
-__global__ void elimination23_1(float *a, float *b, int size, int pivot, int xoffset) {
+__global__ void gpu_kernel_17a(float *a, float *b, int size, int pivot, int xoffset) {
 
 	__shared__ float p;
 
@@ -1013,7 +1003,7 @@ __global__ void elimination23_1(float *a, float *b, int size, int pivot, int xof
 		*(b + ysx) = *(a + ysx);
 }
 
-__global__ void elimination23_2(float *a, float *b, int size, int pivot, int xoffset) {
+__global__ void gpu_kernel_17b(float *a, float *b, int size, int pivot, int xoffset) {
 
 	__shared__ float col;
 

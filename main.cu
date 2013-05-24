@@ -9,7 +9,7 @@ void enter();
 int main() {
 	// Select kernels
 	int cpu_kernel = 2;
-	int gpu_kernel = 23;
+	int gpu_kernel = 17;
 
 	// Whether to show statistics
 	bool show_statistics = true;

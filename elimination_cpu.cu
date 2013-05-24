@@ -1,7 +1,7 @@
-#include "elimination_gold.h"
+#include "elimination_cpu.h"
 #include <stdio.h>
 
-float elimination_gold(float *a, float *b, int size, int kernel) {
+float elimination_cpu(float *a, float *b, int size, int kernel) {
 
 	float elapsed;
 

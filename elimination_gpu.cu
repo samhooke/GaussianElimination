@@ -1,4 +1,4 @@
-#include "elimination_kernel.h"
+#include "elimination_gpu.h"
 
 // Used by kernel 6
 #define BLOCK_SIZE 16
@@ -13,7 +13,7 @@
 // For kernels >= 14, BLOCK_WIDTH must be a factor of (size + 1)
 #define BLOCK_WIDTH 128
 
-float elimination_kernel(float *a, float *b, int size, int kernel) {
+float elimination_gpu(float *a, float *b, int size, int kernel) {
 	// Start timers
 	check("Creating timers");
 	cudaEvent_t timer1, timer2;

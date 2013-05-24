@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include "matrix.h"
-#include "elimination_gold.h"
-#include "elimination_kernel.h"
+#include "elimination_cpu.h"
+#include "elimination_gpu.h"
 #include "check.h"
 
 void enter();
@@ -30,9 +30,9 @@ int main() {
 
 	// Perform Gaussian Elimination
 	check("Performing Gaussian Elimination on CPU");
-	elapsed_cpu += elimination_gold(m_in, m_out_cpu, size, cpu_kernel);
+	elapsed_cpu += elimination_cpu(m_in, m_out_cpu, size, cpu_kernel);
 	check("Performing Gaussian Elimination on GPU");
-	elapsed_gpu += elimination_kernel(m_in, m_out_gpu, size, gpu_kernel);
+	elapsed_gpu += elimination_gpu(m_in, m_out_gpu, size, gpu_kernel);
 	check("Finished Gaussian Elimination on GPU");
 
 	if (show_statistics) {

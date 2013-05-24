@@ -1,12 +1,9 @@
-#ifndef _ELIMINATION_KERNEL_H_
-#define _ELIMINATION_KERNEL_H_
+#ifndef _ELIMINATION_GPU_H_
+#define _ELIMINATION_GPU_H_
 
 #include "check.h"
 
-// Only required for debugging
-#include "elimination_gold.h"
-
-float elimination_kernel(float *a, float *b, int size, int kernel);
+float elimination_gpu(float *a, float *b, int size, int kernel);
 __global__ void gpu_kernel_1(float *a, float *b, int size);
 __global__ void gpu_kernel_2(float *a, float *b, int size);
 __global__ void gpu_kernel_3(float *a, float *b, int size);
@@ -38,4 +35,4 @@ __global__ void gpu_kernel_16b(float *a, float *b, int size, int pivot, int xoff
 __global__ void gpu_kernel_17a(float *a, float *b, int size, int pivot, int xoffset);
 __global__ void gpu_kernel_17b(float *a, float *b, int size, int pivot, int xoffset);
 
-#endif //_ELIMINATION_KERNEL_H_
+#endif //_ELIMINATION_GPU_H_

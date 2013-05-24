@@ -174,40 +174,38 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 		}
 		break;
 	case 19:
-		// GPU Kernel 19
-		dimBlock.x = BLOCK_WIDTH;
-		dimBlock.y = 1;
-		dimGrid.x = size / BLOCK_WIDTH + 1;//(size + 1 - 1) / dimBlock.x + 1;
-		dimGrid.y = size;//(size - 1) / dimBlock.y + 1;
-		for (int pivot = 0; pivot < size; pivot++) {
-			elimination19_1<<<dimGrid, dimBlock>>>(g_a, g_b, size, pivot);
-			elimination19_2<<<dimGrid, dimBlock>>>(g_b, g_a, size, pivot);
-		}
-		break;
 	case 20:
-		// GPU Kernel 20
-		dimBlock.x = BLOCK_WIDTH;
-		dimBlock.y = 1;
-		dimGrid.x = size / BLOCK_WIDTH + 1;//(size + 1 - 1) / dimBlock.x + 1;
-		dimGrid.y = size;//(size - 1) / dimBlock.y + 1;
-		for (int pivot = 0; pivot < size; pivot++) {
-			elimination20_1<<<dimGrid, dimBlock>>>(g_a, g_b, size, pivot);
-			elimination20_2<<<dimGrid, dimBlock>>>(g_b, g_a, size, pivot);
-		}
-		break;
 	case 21:
-		// GPU Kernel 21
+		// GPU Kernel 19, 20 & 21
 		dimBlock.x = BLOCK_WIDTH;
 		dimBlock.y = 1;
-		dimGrid.x = size / BLOCK_WIDTH + 1;//(size + 1 - 1) / dimBlock.x + 1;
-		dimGrid.y = size;//(size - 1) / dimBlock.y + 1;
-		for (int pivot = 0; pivot < size; pivot++) {
-			elimination21_1<<<dimGrid, dimBlock>>>(g_a, g_b, size, pivot);
-			elimination21_2<<<dimGrid, dimBlock>>>(g_b, g_a, size, pivot);
+		dimGrid.x = size / BLOCK_WIDTH + 1; //(size + 1 - 1) / dimBlock.x + 1;
+		dimGrid.y = size; //(size - 1) / dimBlock.y + 1;
+
+		switch (kernel) {
+		case 19:
+			for (int pivot = 0; pivot < size; pivot++) {
+				elimination19_1<<<dimGrid, dimBlock>>>(g_a, g_b, size, pivot);
+				elimination19_2<<<dimGrid, dimBlock>>>(g_b, g_a, size, pivot);
+			}
+			break;
+		case 20:
+			for (int pivot = 0; pivot < size; pivot++) {
+				elimination20_1<<<dimGrid, dimBlock>>>(g_a, g_b, size, pivot);
+				elimination20_2<<<dimGrid, dimBlock>>>(g_b, g_a, size, pivot);
+			}
+			break;
+		case 21:
+			for (int pivot = 0; pivot < size; pivot++) {
+				elimination21_1<<<dimGrid, dimBlock>>>(g_a, g_b, size, pivot);
+				elimination21_2<<<dimGrid, dimBlock>>>(g_b, g_a, size, pivot);
+			}
+			break;
 		}
 		break;
 	case 22:
-		// GPU Kernel 22
+	case 23:
+		// GPU Kernel 22 & 23
 		dimBlock.x = BLOCK_WIDTH;
 		dimBlock.y = 1;
 		int gx = size / BLOCK_WIDTH + 1;
@@ -216,12 +214,26 @@ float elimination_kernel(float *a, float *b, int size, int kernel) {
 
 		int xoffset = 0;
 
-		for (int pivot = 0; pivot < size; pivot++) {
-			xoffset = floor(pivot / BLOCK_WIDTH);
-			dimGrid.x = gx - xoffset;
-			xoffset *= BLOCK_WIDTH;
-			elimination22_1<<<dimGrid, dimBlock>>>(g_a, g_b, size, pivot, xoffset);
-			elimination22_2<<<dimGrid, dimBlock>>>(g_b, g_a, size, pivot, xoffset);
+		switch (kernel) {
+		case 22:
+			for (int pivot = 0; pivot < size; pivot++) {
+				xoffset = floor(pivot / BLOCK_WIDTH);
+				dimGrid.x = gx - xoffset;
+				xoffset *= BLOCK_WIDTH;
+				elimination22_1<<<dimGrid, dimBlock>>>(g_a, g_b, size, pivot, xoffset);
+				elimination22_2<<<dimGrid, dimBlock>>>(g_b, g_a, size, pivot, xoffset);
+			}
+			break;
+		case 23:
+			int s = size + 1;
+			for (int pivot = 0; pivot < size; pivot++) {
+				xoffset = floor(pivot / BLOCK_WIDTH);
+				dimGrid.x = gx - xoffset;
+				xoffset *= BLOCK_WIDTH;
+				elimination23_1<<<dimGrid, dimBlock>>>(g_a, g_b, s, pivot, xoffset);
+				elimination23_2<<<dimGrid, dimBlock>>>(g_b, g_a, s, pivot, xoffset);
+			}
+			break;
 		}
 		break;
 	}
@@ -975,5 +987,45 @@ __global__ void elimination22_2(float *a, float *b, int size, int pivot, int xof
 
 #undef mread
 #undef mwrite
+}
+
+// ----------------------------- elimination 23 ----------------------------- //
+// Based upon elimination 22. Access to matrix data is more efficient. Also, the
+// value of size is incremented by 1 before being passed through the function
+// arguments, because (size + 1) was always used in the GPU code.
+__global__ void elimination23_1(float *a, float *b, int size, int pivot, int xoffset) {
+
+	__shared__ float p;
+
+	int x = threadIdx.x + blockIdx.x * BLOCK_WIDTH + xoffset;
+	int ysx = blockIdx.y * size + x;
+
+	if (threadIdx.x == 0)
+		p = *(a + pivot * (size + 1)); // pivot * size + pivot = pivot * (size + 1)
+
+	__syncthreads();
+
+	if (blockIdx.y == pivot)
+		*(b + ysx) = *(a + ysx) / p;
+	else
+		*(b + ysx) = *(a + ysx);
+}
+
+__global__ void elimination23_2(float *a, float *b, int size, int pivot, int xoffset) {
+
+	__shared__ float col;
+
+	int x = threadIdx.x + blockIdx.x * BLOCK_WIDTH + xoffset;
+	int ysx = blockIdx.y * size + x;
+
+	if (threadIdx.x == 0)
+		col = *(a + blockIdx.y * size + pivot);
+
+	__syncthreads();
+
+	if (blockIdx.y == pivot)
+		*(b + ysx) = *(a + ysx);
+	else
+		*(b + ysx) = *(a + ysx) - col * *(a + pivot * size + x);
 }
 

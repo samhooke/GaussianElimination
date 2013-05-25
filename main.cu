@@ -11,14 +11,14 @@ int main() {
 	// ============================ Kernel =========================== //
 
 	//@@ Select CPU and GPU kernel
-	int kernel_cpu = 2;
-	int kernel_gpu = 17;
+	int kernel_cpu = 1;
+	int kernel_gpu = 1;
 
 	// ============================ Matrix =========================== //
 
 	//@@ Size of input matrix
 	// Some GPU kernels work only with specific sizes
-	int size = 1023;
+	int size = 511;
 
 	//@@ Type of input matrix
 	// -1 = generate matrix filled with random non-zero values
@@ -29,8 +29,8 @@ int main() {
 	// ======================= Test & Statistics ======================= //
 
 	//@@ How many times to test each kernel
-	int test_num_cpu = 1;
-	int test_num_gpu = 3;
+	int test_num_cpu = 0;
+	int test_num_gpu = 10;
 
 	//@@ Whether to show statistics at the end
 	bool show_end_statistics = true;
@@ -52,12 +52,12 @@ int main() {
 	float t;
 	int i;
 	if (test_num_cpu > 0) {
-		printf(" CPU Test # | Execution Time (ms) \n");
-		printf("------------|---------------------\n");
+		printf(" Execution Time (ms): \n");
+		printf("---------------------\n");
 		for (i = 0; i < test_num_cpu; i++) {
 			check("Performing Gaussian Elimination on CPU");
 			t = elimination_cpu(m_in, m_out_cpu, size, kernel_cpu);
-			printf("%11d | %f\n", i, t);
+			printf("%f\n", t);
 			elapsed_cpu += t;
 		}
 		printf("\n");
@@ -65,12 +65,12 @@ int main() {
 	}
 
 	if (test_num_gpu > 0) {
-		printf(" GPU Test # | Execution Time (ms) \n");
-		printf("------------|---------------------\n");
+		printf(" Execution Time (ms): \n");
+		printf("---------------------\n");
 		for (i = 0; i < test_num_gpu; i++) {
 			check("Performing Gaussian Elimination on GPU");
 			t = elimination_gpu(m_in, m_out_gpu, size, kernel_gpu);
-			printf("%11d | %f\n", i, t);
+			printf("%f\n", t);
 			elapsed_gpu += t;
 		}
 		printf("\n");
@@ -89,7 +89,12 @@ int main() {
 			printf("%6.2f%% match at %8.4f tolerance\n", match_b * 100, tolerance);
 		}
 
-		float p = elapsed_cpu / elapsed_gpu;
+		float p;
+		if (elapsed_gpu > 0)
+			p = elapsed_cpu / elapsed_gpu;
+		else
+			p = -1;
+
 		printf("GPU was %2.2f%% %s\n", ((p < 1 ? 1 / p : p) - 1) * 100, p < 1 ? "slower" : "faster");
 
 		printf("Press enter for column 'b' results...\n");

@@ -2,20 +2,31 @@
 #include <stdio.h>
 
 float elimination_cpu(float *a, float *b, int size, int kernel) {
-
-	float elapsed;
+	// Start timers
+	cudaEvent_t timer1, timer2;
+	cudaEventCreate(&timer1);
+	cudaEventCreate(&timer2);
+	cudaEventRecord(timer1, 0);
+	cudaEventSynchronize(timer1);
 
 	switch (kernel) {
 	case 1:
-		elapsed = cpu_kernel_1(a, b, size);
+		cpu_kernel_1(a, b, size);
 		break;
 	case 2:
-		elapsed = cpu_kernel_2(a, b, size);
+		cpu_kernel_2(a, b, size);
 		break;
 	case 3:
-		elapsed = cpu_kernel_3(a, b, size);
+		cpu_kernel_3(a, b, size);
 		break;
 	}
+
+	// Stop timers
+	cudaEventRecord(timer2, 0);
+	cudaEventSynchronize(timer1);
+	cudaEventSynchronize(timer2);
+	float elapsed;
+	cudaEventElapsedTime(&elapsed, timer1, timer2);
 
 	return elapsed;
 }
@@ -28,14 +39,7 @@ float elimination_cpu(float *a, float *b, int size, int kernel) {
 // Outputs:
 //   Modifies 'a' into the identity matrix
 //   Modifies 'b' into the solution for {x}
-float cpu_kernel_1(float *a, float *b, int size) {
-	// Start timers
-	cudaEvent_t timer1, timer2;
-	cudaEventCreate(&timer1);
-	cudaEventCreate(&timer2);
-	cudaEventRecord(timer1, 0);
-	cudaEventSynchronize(timer1);
-
+void cpu_kernel_1(float *a, float *b, int size) {
 #define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
 	unsigned int xx, yy, rr;
 	float c;
@@ -61,23 +65,9 @@ float cpu_kernel_1(float *a, float *b, int size) {
 		}
 	}
 #undef element
-
-	// Stop timers
-	cudaEventRecord(timer2, 0);
-	cudaEventSynchronize(timer1);
-	cudaEventSynchronize(timer2);
-	float elapsed;
-	cudaEventElapsedTime(&elapsed, timer1, timer2);
-	return elapsed;
 }
 
-float cpu_kernel_2(float *a, float *b, int size) {
-	// Start timers
-	cudaEvent_t timer1, timer2;
-	cudaEventCreate(&timer1);
-	cudaEventCreate(&timer2);
-	cudaEventRecord(timer1, 0);
-
+void cpu_kernel_2(float *a, float *b, int size) {
 #define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
 	unsigned int xx, yy, rr;
 	float c;
@@ -115,25 +105,11 @@ float cpu_kernel_2(float *a, float *b, int size) {
 		}
 	}
 #undef element
-
-	// Stop timers
-	cudaEventRecord(timer2, 0);
-	cudaEventSynchronize(timer1);
-	cudaEventSynchronize(timer2);
-	float elapsed;
-	cudaEventElapsedTime(&elapsed, timer1, timer2);
-	return elapsed;
 }
 
 // This method suffers some loss in precision and is also slower
 // However, the main loop is simpler
-float cpu_kernel_3(float *a, float *b, int size) {
-	// Start timers
-	cudaEvent_t timer1, timer2;
-	cudaEventCreate(&timer1);
-	cudaEventCreate(&timer2);
-	cudaEventRecord(timer1, 0);
-
+void cpu_kernel_3(float *a, float *b, int size) {
 #define element(_x, _y) (*(b + ((_y) * (size + 1) + (_x))))
 	unsigned int xx, yy, rr;
 	float pivot, c;
@@ -160,12 +136,4 @@ float cpu_kernel_3(float *a, float *b, int size) {
 		element(size, yy) /= element(yy, yy);
 	}
 #undef element
-
-	// Stop timers
-	cudaEventRecord(timer2, 0);
-	cudaEventSynchronize(timer1);
-	cudaEventSynchronize(timer2);
-	float elapsed;
-	cudaEventElapsedTime(&elapsed, timer1, timer2);
-	return elapsed;
 }

@@ -11,8 +11,8 @@ int main() {
 	// ============================ Kernel =========================== //
 
 	//@@ Select CPU and GPU kernel
-	int kernel_cpu = 1;
-	int kernel_gpu = 1;
+	int kernel_cpu = 2;
+	int kernel_gpu = 17;
 
 	// ============================ Matrix =========================== //
 
@@ -29,8 +29,8 @@ int main() {
 	// ======================= Test & Statistics ======================= //
 
 	//@@ How many times to test each kernel
-	int test_num_cpu = 0;
-	int test_num_gpu = 10;
+	int test_num_cpu = 1;
+	int test_num_gpu = 1;
 
 	//@@ Whether to show statistics at the end
 	bool show_end_statistics = true;

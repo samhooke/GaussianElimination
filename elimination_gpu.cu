@@ -11,6 +11,7 @@
 
 // Used by kernel 13, 14, 15, 16 & 17
 // For kernels >= 14, BLOCK_WIDTH must be a factor of (size + 1)
+// The optimal BLOCK_WIDTH was found to be 128
 #define BLOCK_WIDTH 128
 
 float elimination_gpu(float *a, float *b, int size, int kernel) {

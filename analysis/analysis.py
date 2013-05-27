@@ -18,10 +18,10 @@ import sys
 import os
 
 # Choose the matrix size
-size = 8;
+size = 9
 
 # Choose tile x, y, width, height
-tile = [2, 2, 4, 1];
+tile = [4, 4, 4, 1]
 
 # Choose for which pivots between 0 and size - 1 to display results
 stages = range(size)
@@ -40,10 +40,12 @@ for pivot in range(height):
 
 os.system(['clear', 'cls'][os.name == 'nt'])
 
+w = max(1, max(len(matrix[(x,y)]) for x in range(width) for y in range(height)))
+
 for y in range(height):
 	for x in range(width):
 		s = matrix[(x,y)]
-		while (len(s) < len(reference) + 1):
+		while (len(s) < w):
 			s += "."
 		s += " "
 		sys.stdout.write(s)

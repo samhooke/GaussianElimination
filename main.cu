@@ -12,7 +12,7 @@ int main() {
 
 	//@@ Select CPU and GPU kernel
 	int kernel_cpu = 2;
-	int kernel_gpu = 17;
+	int kernel_gpu = 5;
 
 	// ============================ Matrix =========================== //
 
